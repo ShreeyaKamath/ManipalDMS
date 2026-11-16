@@ -1,34 +1,41 @@
-﻿using System;
+using System;
 using System.Windows.Forms;
 
 namespace ManipalDMS
 {
     public partial class DashboardForm : Form
     {
-        string userRole;
+        private readonly string currentUser;
+        private readonly string userRole;
 
-        public DashboardForm(string role)
+        public DashboardForm(string username, string role)
         {
             InitializeComponent();
-            labelRole.Text = $"Logged in as: {role}";
+            currentUser = username;
+            userRole = role;
+            labelRole.Text = "Signed in: " + currentUser + "  |  " + userRole;
+            buttonDocs.Click += buttonDocs_Click;
+            buttonAds.Click += buttonAds_Click;
+            buttonPublish.Click += buttonPublish_Click;
+            StartPosition = FormStartPosition.CenterScreen;
         }
 
         private void buttonDocs_Click(object sender, EventArgs e)
         {
-            new DocumentsForm().ShowDialog();
+            using (DocumentsForm form = new DocumentsForm(currentUser))
+                form.ShowDialog(this);
         }
 
         private void buttonAds_Click(object sender, EventArgs e)
         {
-            new AdsForm().ShowDialog();
+            using (AdsForm form = new AdsForm(currentUser))
+                form.ShowDialog(this);
         }
 
         private void buttonPublish_Click(object sender, EventArgs e)
         {
-            new PublishingForm().ShowDialog();
+            using (PublishingForm form = new PublishingForm(currentUser))
+                form.ShowDialog(this);
         }
     }
 }
-
-
-

@@ -10,7 +10,6 @@ GO
 USE PressDMS;
 GO
 
-
 CREATE TABLE Users (
     UserID INT IDENTITY(1,1) PRIMARY KEY,
     Username NVARCHAR(50) UNIQUE NOT NULL,
@@ -18,16 +17,15 @@ CREATE TABLE Users (
     Role NVARCHAR(20) NOT NULL
 );
 
-
 CREATE TABLE Documents (
     DocumentID INT IDENTITY(1,1) PRIMARY KEY,
-    Title NVARCHAR(100),
-    Category NVARCHAR(50),
-    FilePath NVARCHAR(255),
-    UploadedBy NVARCHAR(50),
-    UploadDate DATETIME DEFAULT GETDATE()
+    Title NVARCHAR(100) NOT NULL,
+    Category NVARCHAR(50) NOT NULL,
+    FilePath NVARCHAR(255) NOT NULL,
+    StoredFileName NVARCHAR(255) NOT NULL,
+    UploadedBy NVARCHAR(50) NOT NULL,
+    UploadDate DATETIME NOT NULL DEFAULT GETDATE()
 );
-
 
 CREATE TABLE Advertisements (
     AdID INT IDENTITY(1,1) PRIMARY KEY,
@@ -37,7 +35,6 @@ CREATE TABLE Advertisements (
     DatePosted DATETIME DEFAULT GETDATE()
 );
 
-
 CREATE TABLE Publishing (
     PubID INT IDENTITY(1,1) PRIMARY KEY,
     ArticleTitle NVARCHAR(100),
@@ -46,50 +43,31 @@ CREATE TABLE Publishing (
     Revenue DECIMAL(10,2)
 );
 
-DELETE FROM Users;
-GO
-INSERT INTO Users (Username, Password, Role)
-VALUES
-('admin', 'admin123', 'Admin'),
-('editor', 'editor123', 'Editor'),
-('accountant', 'acct123', 'Accountant');
-
-
--- Sample documents
-INSERT INTO Documents (Title, Category, FilePath, UploadedBy)
-VALUES
-('Marketing Strategy', 'Advertisement', 'C:\\Docs\\Marketing.pdf', 'editor'),
-('Financial Report', 'Accounts', 'C:\\Docs\\Finance.xlsx', 'accountant');
-
--- Sample advertisements
-INSERT INTO Advertisements (ClientName, AdType, Cost)
-VALUES
-('ABC Corp', 'Newspaper Ad', 2500.00),
-('XYZ Pvt Ltd', 'Online Banner', 1800.00);
-
--- Sample publishing data
-INSERT INTO Publishing (ArticleTitle, PublishDate, Cost, Revenue)
-VALUES
-('Annual Review 2025', GETDATE(), 5000.00, 8000.00),
-('Tech Insights', GETDATE(), 3000.00, 5000.00);
-
-
-
-
-SELECT * FROM Users;
-SELECT * FROM Documents;
-SELECT * FROM Advertisements;
-SELECT * FROM Publishing;
-
-
-ALTER TABLE Documents ADD StoredFileName NVARCHAR(255);
-ALTER TABLE Documents ADD FileContent VARBINARY(MAX); -- Optional: store content in DB
-
-
 CREATE TABLE AuditLog (
     LogID INT IDENTITY(1,1) PRIMARY KEY,
     Username NVARCHAR(50),
     Action NVARCHAR(50),
     TableAffected NVARCHAR(50),
     Timestamp DATETIME DEFAULT GETDATE(),
-    Details NVARCHAR(255));
+    Details NVARCHAR(255)
+);
+
+-- Local demo accounts only. Replace with securely managed, hashed credentials before deployment.
+INSERT INTO Users (Username, Password, Role)
+VALUES ('admin', 'admin123', 'Admin'),
+       ('editor', 'editor123', 'Editor'),
+       ('accountant', 'acct123', 'Accountant');
+
+-- Sample metadata. These example files are not included in the repository.
+INSERT INTO Documents (Title, Category, FilePath, StoredFileName, UploadedBy)
+VALUES ('Marketing Strategy', 'Advertisement', 'C:\\Docs\\Marketing.pdf', 'Marketing.pdf', 'editor'),
+       ('Financial Report', 'Accounts', 'C:\\Docs\\Finance.xlsx', 'Finance.xlsx', 'accountant');
+
+INSERT INTO Advertisements (ClientName, AdType, Cost)
+VALUES ('ABC Corp', 'Newspaper Ad', 2500.00),
+       ('XYZ Pvt Ltd', 'Online Banner', 1800.00);
+
+INSERT INTO Publishing (ArticleTitle, PublishDate, Cost, Revenue)
+VALUES ('Annual Review 2025', GETDATE(), 5000.00, 8000.00),
+       ('Tech Insights', GETDATE(), 3000.00, 5000.00);
+GO

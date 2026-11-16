@@ -1,55 +1,41 @@
 # ManipalDMS
 
-ManipalDMS is a Windows desktop document management application built with C# Windows Forms and SQL Server. It includes a login screen and dashboard, document upload/download and search, and forms for managing advertisement and publishing records.
+ManipalDMS is a Windows desktop document management application built with C# Windows Forms and SQL Server. The application provides sign-in, document management, advertisement tracking, and publishing records.
 
-## Features
+## Interactive features
 
-- Browse, upload, and download documents. Files are copied to a local storage folder; document metadata is stored in SQL Server.
-- Search documents by title, category, uploader, and date range.
-- View and add advertisement and publishing records.
-- Record audit entries for document uploads, downloads, and searches.
-- Display the signed-in user's role on the dashboard.
-
-> **Current implementation note:** The role is displayed after login, but role-based restrictions on individual actions are not apparent in the current UI code. The document storage location and SQL Server connection are configured in source code. Review and update these settings before use. This project should be treated as a learning/demo application, not deployed with sensitive data as-is.
+- Sign in against the `Users` table; the signed-in username is used for document ownership and audit entries.
+- Upload documents, record their metadata, search by title/category/uploader/date range, refresh results, and download the selected file (or double-click a row).
+- Add and review advertisement and publishing records with input validation and automatic list refresh.
+- Record audit entries for uploads, downloads, searches, and newly created business records.
+- SQL operations use parameters, and uploaded files are stored under the current Windows user's Local AppData folder in `ManipalDMS/Documents`.
 
 ## Requirements
 
 - Windows
 - Visual Studio with .NET desktop development tools
-- .NET Framework 4.7.2 Developer Pack (the project targets .NET Framework 4.7.2)
-- SQL Server or SQL Server Express, with a database named `PressDMS`
+- .NET Framework 4.7.2 Developer Pack
+- SQL Server or SQL Server Express
 
 ## Setup
 
-1. Clone the repository and open `ManipalDMS.sln` in Visual Studio.
-2. Set up SQL Server and create the `PressDMS` database and required tables. The repository includes a sample schema and seed-data script in `~vs7E75.sql`.
-   - **Caution:** That script drops and recreates the `PressDMS` database if it already exists. Back up any data you need and review the script before running it.
-   - The script inserts sample users (`admin`, `editor`, and `accountant`) with demo passwords. These credentials are for local testing only; replace them and do not use them in a real deployment.
-3. Configure the SQL Server connection in `DatabaseHelper.cs` to match your local server and database. Do not commit passwords or other secrets. Although `App.config` also contains a connection string, the current `DatabaseHelper` uses its own hard-coded connection string.
-4. In `DocumentsForm.cs`, change `docsDirectory` to a folder that exists or that the application account can create and write to. The default is `C:\\ManipalDMSFiles\\`.
-5. Build and run the solution in Visual Studio. The default database connection targets the local SQL Server Express instance (`.\\SQLEXPRESS`).
+1. Open `ManipalDMS.sln` in Visual Studio.
+2. Review `~vs7E75.sql` before running it in SQL Server Management Studio. **It drops and recreates the `PressDMS` database.** Back up any existing data first. The script creates the tables and local demo accounts.
+3. In `App.config`, update the `PressDMS` connection string's server name if needed. It uses Windows Integrated Security; grant the Windows account running the app appropriate database permissions.
+4. Build and run the solution. Demo credentials from the seed script: `admin` / `admin123`, `editor` / `editor123`, or `accountant` / `acct123`.
 
-## Basic use
+## Important security notes
 
-Sign in with a user present in the `Users` table. From the dashboard, open Documents to upload, download, refresh, or search for documents; use the other dashboard forms to work with advertisement and publishing records.
-
-## Security considerations
-
-This codebase is not production-ready. In particular, review the following before using real or sensitive data:
-
-- Database credentials are embedded in source/configuration. Use protected configuration or a secrets manager and a least-privilege SQL account; never use a `sysadmin` account for the application.
-- Login and data operations currently build SQL statements from user input. Replace them with parameterized commands and use secure password hashing rather than storing/comparing plaintext passwords.
-- Configure access controls for the document storage folder and implement/verify authorization for each role and operation.
-- Review file naming, overwrite behavior, validation, error handling, and audit-log coverage for your deployment requirements.
+This is a local/demo application, not production-ready. The sample schema stores demo passwords as plaintext; replace this with a vetted password-hashing and account-management design before using real accounts. Apply least-privilege SQL permissions, validate deployment-specific role authorization, and secure the local document storage folder. Do not use the sample credentials or destructive seed script with sensitive data.
 
 ## Project structure
 
 - `ManipalDMS.sln` / `ManipalDMS.csproj` — Visual Studio solution and project
 - `Program.cs` — application entry point
-- `LoginForm.cs`, `DashboardForm.cs` — login and navigation
-- `DocumentsForm.cs` — document operations and search
-- `AdsForm.cs`, `PublishingForm.cs` — advertisement and publishing records
-- `DatabaseHelper.cs` — SQL Server access and audit logging
+- `LoginForm.cs`, `DashboardForm.cs` — sign-in and navigation
+- `DocumentsForm.cs` — upload, download, and search
+- `AdsForm.cs`, `PublishingForm.cs` — business record entry and display
+- `DatabaseHelper.cs` — parameterized SQL Server access and audit logging
 - `~vs7E75.sql` — sample database schema and seed data (review before running)
 
 ## License

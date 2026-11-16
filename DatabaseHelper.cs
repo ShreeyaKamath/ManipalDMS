@@ -1,47 +1,64 @@
-﻿using System;
+using System;
+using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
 
 namespace ManipalDMS
 {
-    internal class DatabaseHelper
+    internal static class DatabaseHelper
     {
-        private static string connectionString =
-            @"Data Source=.\SQLEXPRESS;Initial Catalog=PressDMS;User ID=sa;Password=shreeyakamatH7";
-
-        public static SqlConnection GetConnection()
+        private static string ConnectionString
         {
-            SqlConnection con = new SqlConnection(connectionString);
-            return con;
-        }
-
-        public static DataTable ExecuteQuery(string query)
-        {
-            using (SqlConnection con = GetConnection())
+            get
             {
-                SqlDataAdapter da = new SqlDataAdapter(query, con);
-                DataTable dt = new DataTable();
-                da.Fill(dt);
-                return dt;
+                ConnectionStringSettings settings = ConfigurationManager.ConnectionStrings["PressDMS"];
+                if (settings == null || string.IsNullOrWhiteSpace(settings.ConnectionString))
+                    throw new InvalidOperationException("The PressDMS connection string is missing from App.config.");
+
+                return settings.ConnectionString;
             }
         }
 
-        public static void ExecuteNonQuery(string query)
+        public static DataTable ExecuteQuery(string query, params SqlParameter[] parameters)
         {
-            using (SqlConnection con = GetConnection())
+            using (SqlConnection connection = new SqlConnection(ConnectionString))
+            using (SqlCommand command = new SqlCommand(query, connection))
+            using (SqlDataAdapter adapter = new SqlDataAdapter(command))
             {
-                SqlCommand cmd = new SqlCommand(query, con);
-                con.Open();
-                cmd.ExecuteNonQuery();
+                AddParameters(command, parameters);
+                DataTable results = new DataTable();
+                adapter.Fill(results);
+                return results;
+            }
+        }
+
+        public static int ExecuteNonQuery(string query, params SqlParameter[] parameters)
+        {
+            using (SqlConnection connection = new SqlConnection(ConnectionString))
+            using (SqlCommand command = new SqlCommand(query, connection))
+            {
+                AddParameters(command, parameters);
+                connection.Open();
+                return command.ExecuteNonQuery();
             }
         }
 
         public static void LogActivity(string username, string action, string tableAffected, string details)
         {
-            string query = $"INSERT INTO AuditLog (Username, Action, TableAffected, Details) " +
-                           $"VALUES ('{username}', '{action}', '{tableAffected}', '{details}')";
-            ExecuteNonQuery(query);
+            const string query = "INSERT INTO AuditLog (Username, Action, TableAffected, Details) " +
+                                 "VALUES (@Username, @Action, @TableAffected, @Details)";
+            ExecuteNonQuery(query,
+                new SqlParameter("@Username", SqlDbType.NVarChar, 50) { Value = username ?? string.Empty },
+                new SqlParameter("@Action", SqlDbType.NVarChar, 50) { Value = action },
+                new SqlParameter("@TableAffected", SqlDbType.NVarChar, 50) { Value = tableAffected },
+                new SqlParameter("@Details", SqlDbType.NVarChar, 255) { Value = details ?? string.Empty });
         }
 
+        private static void AddParameters(SqlCommand command, SqlParameter[] parameters)
+        {
+            if (parameters == null) return;
+            foreach (SqlParameter parameter in parameters)
+                command.Parameters.Add(parameter);
+        }
     }
 }
