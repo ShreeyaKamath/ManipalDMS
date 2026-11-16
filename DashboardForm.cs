@@ -1,5 +1,6 @@
 using System;
 using System.Data;
+using System.Data.SqlClient;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -20,12 +21,9 @@ namespace ManipalDMS
             labelRole.Text = "Signed in: " + currentUser + " | " + userRole;
             StartPosition = FormStartPosition.CenterScreen;
 
-            // These controls are created here rather than in the WinForms designer,
-            // keeping both entry points available without stale designer references.
             buttonUsers = CreateDashboardButton("User Management", new Point(55, 350), Color.FromArgb(108, 117, 125));
             buttonUsers.Click += buttonUsers_Click;
             panelContent.Controls.Add(buttonUsers);
-
             buttonAudit = CreateDashboardButton("Audit Log", new Point(660, 350), Color.FromArgb(65, 85, 110));
             buttonAudit.Click += buttonAudit_Click;
             panelContent.Controls.Add(buttonAudit);
@@ -38,13 +36,8 @@ namespace ManipalDMS
         {
             return new Button
             {
-                Text = text,
-                Width = 230,
-                Height = 48,
-                Location = location,
-                BackColor = backColor,
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
+                Text = text, Width = 230, Height = 48, Location = location, BackColor = backColor,
+                ForeColor = Color.White, FlatStyle = FlatStyle.Flat,
                 Font = new Font("Segoe UI", 12F, FontStyle.Bold)
             };
         }
@@ -53,8 +46,17 @@ namespace ManipalDMS
         {
             try
             {
-                labelDocsCount.Text = SecurityPolicy.HasPermission(userRole, Permission.DocumentsRead)
-                    ? GetCount("SELECT COUNT(*) FROM dbo.Documents") : "—";
+                if (SecurityPolicy.HasPermission(userRole, Permission.DocumentsRead))
+                {
+                    DataTable docs = DatabaseHelper.ExecuteQuery(
+                        @"SELECT COUNT(*) FROM dbo.Documents
+                          WHERE (@CanViewAll = 1 OR UploadedBy = @CurrentUser)",
+                        new SqlParameter("@CanViewAll", SqlDbType.Bit) { Value = SecurityPolicy.CanViewAllDocuments(userRole) },
+                        new SqlParameter("@CurrentUser", SqlDbType.NVarChar, 50) { Value = currentUser });
+                    labelDocsCount.Text = docs.Rows.Count == 0 ? "0" : Convert.ToString(docs.Rows[0][0]);
+                }
+                else labelDocsCount.Text = "—";
+
                 labelAdsCount.Text = SecurityPolicy.HasPermission(userRole, Permission.AdsRead)
                     ? GetCount("SELECT COUNT(*) FROM dbo.Advertisements") : "—";
                 labelPubCount.Text = SecurityPolicy.HasPermission(userRole, Permission.PublishingRead)
@@ -75,12 +77,11 @@ namespace ManipalDMS
 
         private void ApplyRoleAccess()
         {
-            bool docs = SecurityPolicy.CanManageDocuments(userRole);
-            bool ads = SecurityPolicy.CanManageAds(userRole);
-            bool publishing = SecurityPolicy.CanManagePublishing(userRole);
+            bool docs = SecurityPolicy.HasPermission(userRole, Permission.DocumentsRead);
+            bool ads = SecurityPolicy.HasPermission(userRole, Permission.AdsRead);
+            bool publishing = SecurityPolicy.HasPermission(userRole, Permission.PublishingRead);
             bool users = SecurityPolicy.CanManageUsers(userRole);
             bool audit = SecurityPolicy.CanViewAuditLog(userRole);
-
             buttonDocs.Enabled = buttonDocs.Visible = docs;
             buttonAds.Enabled = buttonAds.Visible = ads;
             buttonPublish.Enabled = buttonPublish.Visible = publishing;
@@ -90,21 +91,21 @@ namespace ManipalDMS
 
         private void buttonDocs_Click(object sender, EventArgs e)
         {
-            if (!SecurityPolicy.CanManageDocuments(userRole)) { Deny(); return; }
+            if (!SecurityPolicy.HasPermission(userRole, Permission.DocumentsRead)) { Deny(); return; }
             using (DocumentsForm form = new DocumentsForm(currentUser, userRole)) form.ShowDialog(this);
             LoadSummary();
         }
 
         private void buttonAds_Click(object sender, EventArgs e)
         {
-            if (!SecurityPolicy.CanManageAds(userRole)) { Deny(); return; }
+            if (!SecurityPolicy.HasPermission(userRole, Permission.AdsRead)) { Deny(); return; }
             using (AdsForm form = new AdsForm(currentUser, userRole)) form.ShowDialog(this);
             LoadSummary();
         }
 
         private void buttonPublish_Click(object sender, EventArgs e)
         {
-            if (!SecurityPolicy.CanManagePublishing(userRole)) { Deny(); return; }
+            if (!SecurityPolicy.HasPermission(userRole, Permission.PublishingRead)) { Deny(); return; }
             using (PublishingForm form = new PublishingForm(currentUser, userRole)) form.ShowDialog(this);
             LoadSummary();
         }

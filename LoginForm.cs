@@ -2,7 +2,6 @@ using System;
 using System.Data;
 using System.Data.SqlClient;
 using System.Diagnostics;
-using System.Security.Cryptography;
 using System.Windows.Forms;
 
 namespace ManipalDMS
@@ -11,6 +10,7 @@ namespace ManipalDMS
     {
         private const int MaxFailedAttempts = 5;
         private const int LockoutMinutes = 15;
+        private const string SupportedPasswordAlgorithm = "PBKDF2-SHA256-310000";
 
         public LoginForm()
         {
@@ -34,7 +34,7 @@ namespace ManipalDMS
             try
             {
                 DataTable users = DatabaseHelper.ExecuteQuery(
-                    @"SELECT UserID, Role, PasswordHash, PasswordSalt, IsActive,
+                    @"SELECT UserID, Role, PasswordHash, PasswordSalt, PasswordAlgorithm, IsActive,
                              FailedLoginAttempts, LockoutUntilUtc
                       FROM dbo.Users WHERE Username = @Username",
                     new SqlParameter("@Username", SqlDbType.NVarChar, 50) { Value = username });
@@ -59,19 +59,35 @@ namespace ManipalDMS
 
                 byte[] hash = row["PasswordHash"] as byte[];
                 byte[] salt = row["PasswordSalt"] as byte[];
-                bool valid = PasswordHashing.VerifyPassword(password, hash, salt);
-                if (!valid)
+                string algorithm = Convert.ToString(row["PasswordAlgorithm"]);
+                if (!string.Equals(algorithm, SupportedPasswordAlgorithm, StringComparison.Ordinal))
+                {
+                    Trace.TraceWarning("Login refused for {0}: unsupported password algorithm.", username);
+                    BurnUnknownUserPassword(password);
+                    ShowInvalidLogin();
+                    return;
+                }
+
+                if (!PasswordHashing.VerifyPassword(password, hash, salt))
                 {
                     RecordFailedLogin(username);
                     ShowInvalidLogin();
                     return;
                 }
 
+                string role = Convert.ToString(row["Role"]);
+                if (!SecurityPolicy.HasAnyPermission(role))
+                {
+                    Trace.TraceWarning("Login refused for {0}: role has no configured permissions.", username);
+                    MessageBox.Show("This account is not configured for application access. Contact your administrator.",
+                        "Sign in", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
                 DatabaseHelper.ExecuteNonQuery(
-                    "UPDATE dbo.Users SET FailedLoginAttempts = 0, LockoutUntilUtc = NULL, UpdatedUtc = SYSUTCDATETIME() WHERE Username = @Username",
+                    "UPDATE dbo.Users SET FailedLoginAttempts = 0, LockoutUntilUtc = NULL, UpdatedUtc = SYSUTCDATETIME() WHERE Username = @Username AND IsActive = 1",
                     new SqlParameter("@Username", SqlDbType.NVarChar, 50) { Value = username });
 
-                string role = Convert.ToString(row["Role"]);
                 DashboardForm dashboard = new DashboardForm(username, role);
                 dashboard.FormClosed += (s, args) => Close();
                 Hide();
@@ -103,7 +119,7 @@ namespace ManipalDMS
                         WHEN LockoutUntilUtc IS NOT NULL AND LockoutUntilUtc <= SYSUTCDATETIME() THEN NULL
                         ELSE LockoutUntilUtc END,
                     UpdatedUtc = SYSUTCDATETIME()
-                WHERE Username = @Username";
+                WHERE Username = @Username AND IsActive = 1";
             DatabaseHelper.ExecuteNonQuery(sql,
                 new SqlParameter("@MaxAttempts", SqlDbType.Int) { Value = MaxFailedAttempts },
                 new SqlParameter("@LockoutMinutes", SqlDbType.Int) { Value = LockoutMinutes },

@@ -14,6 +14,7 @@ namespace ManipalDMS
     public enum Permission
     {
         DocumentsRead,
+        DocumentsReadAll,
         DocumentsWrite,
         AdsRead,
         AdsWrite,
@@ -32,12 +33,10 @@ namespace ManipalDMS
                 && string.Equals(role.Trim(), expected.ToString(), StringComparison.OrdinalIgnoreCase);
         }
 
-        // Permission grants live in dbo.RolePermissions. Permission lookup fails closed.
+        // Grants are loaded from the database, and failures deny access.
         public static bool HasPermission(string role, Permission permission)
         {
-            if (string.IsNullOrWhiteSpace(role))
-                return false;
-
+            if (string.IsNullOrWhiteSpace(role)) return false;
             try
             {
                 DataTable result = DatabaseHelper.ExecuteQuery(
@@ -57,42 +56,34 @@ namespace ManipalDMS
             }
         }
 
+        public static bool HasAnyPermission(string role)
+        {
+            if (string.IsNullOrWhiteSpace(role)) return false;
+            try
+            {
+                DataTable result = DatabaseHelper.ExecuteQuery(
+                    @"SELECT TOP (1) 1
+                      FROM dbo.Roles r
+                      INNER JOIN dbo.RolePermissions rp ON rp.RoleID = r.RoleID
+                      WHERE r.RoleName = @RoleName",
+                    new SqlParameter("@RoleName", SqlDbType.NVarChar, 30) { Value = role.Trim() });
+                return result.Rows.Count == 1;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.TraceError("Role permission validation failed closed: {0}", ex);
+                return false;
+            }
+        }
+
         public static bool IsAdmin(string role) { return HasRole(role, UserRole.Admin); }
         public static bool IsEditor(string role) { return HasRole(role, UserRole.Editor); }
         public static bool IsAccountant(string role) { return HasRole(role, UserRole.Accountant); }
-
-        public static bool CanManageDocuments(string role)
-        {
-            return HasPermission(role, Permission.DocumentsRead)
-                && HasPermission(role, Permission.DocumentsWrite);
-        }
-
-        public static bool CanManageAds(string role)
-        {
-            return HasPermission(role, Permission.AdsRead)
-                && HasPermission(role, Permission.AdsWrite);
-        }
-
-        public static bool CanManagePublishing(string role)
-        {
-            return HasPermission(role, Permission.PublishingRead)
-                && HasPermission(role, Permission.PublishingWrite);
-        }
-
-        public static bool CanManageUsers(string role)
-        {
-            return HasPermission(role, Permission.UsersRead)
-                && HasPermission(role, Permission.UsersWrite);
-        }
-
-        public static bool CanViewAuditLog(string role)
-        {
-            return HasPermission(role, Permission.AuditRead);
-        }
-
-        public static bool CanViewAllDocuments(string role)
-        {
-            return IsAdmin(role) || IsAccountant(role);
-        }
+        public static bool CanManageDocuments(string role) { return HasPermission(role, Permission.DocumentsRead) && HasPermission(role, Permission.DocumentsWrite); }
+        public static bool CanManageAds(string role) { return HasPermission(role, Permission.AdsRead) && HasPermission(role, Permission.AdsWrite); }
+        public static bool CanManagePublishing(string role) { return HasPermission(role, Permission.PublishingRead) && HasPermission(role, Permission.PublishingWrite); }
+        public static bool CanManageUsers(string role) { return HasPermission(role, Permission.UsersRead) && HasPermission(role, Permission.UsersWrite); }
+        public static bool CanViewAuditLog(string role) { return HasPermission(role, Permission.AuditRead); }
+        public static bool CanViewAllDocuments(string role) { return HasPermission(role, Permission.DocumentsReadAll); }
     }
 }
