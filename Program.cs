@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Windows.Forms;
 
 namespace ManipalDMS
@@ -10,6 +10,7 @@ namespace ManipalDMS
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+            DmsTheme.Initialize();
             Application.Run(new LoginForm());
         }
     }
