@@ -12,17 +12,13 @@ namespace ManipalDMS
     {
         private const long MaxDocumentSizeBytes = 25L * 1024L * 1024L;
         private static readonly string[] AllowedExtensions = { ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".txt", ".csv", ".png", ".jpg", ".jpeg" };
-
-        private readonly string docsDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ManipalDMS", "Documents");
+        private readonly string docsDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ManipalDMS", "Documents");
         private readonly string currentUser;
         private readonly string currentRole;
 
         public DocumentsForm(string username, string role)
         {
-            if (!SecurityPolicy.CanManageDocuments(role))
-                throw new UnauthorizedAccessException("Role is not authorized to manage documents.");
-
+            if (!SecurityPolicy.CanManageDocuments(role)) throw new UnauthorizedAccessException("Role is not authorized to manage documents.");
             InitializeComponent();
             currentUser = username;
             currentRole = role;
@@ -45,61 +41,40 @@ namespace ManipalDMS
             try
             {
                 dataGridView1.DataSource = DatabaseHelper.ExecuteQuery(
-                    "SELECT DocumentID, Title, Category, UploadedBy, UploadDate, StoredFileName FROM Documents ORDER BY UploadDate DESC");
+                    @"SELECT DocumentID, Title, Category, UploadedBy, UploadDate, StoredFileName
+                      FROM dbo.Documents
+                      WHERE (@CanViewAll = 1 OR UploadedBy = @CurrentUser)
+                      ORDER BY UploadDate DESC",
+                    new SqlParameter("@CanViewAll", SqlDbType.Bit) { Value = SecurityPolicy.CanViewAllDocuments(currentRole) },
+                    new SqlParameter("@CurrentUser", SqlDbType.NVarChar, 50) { Value = currentUser });
             }
-            catch (Exception ex)
-            {
-                ShowDatabaseError(ex);
-            }
+            catch (Exception ex) { ShowDatabaseError(ex); }
         }
 
-        private void LogActivity(string action, string details)
-        {
-            DatabaseHelper.LogActivity(currentUser, action, "Documents", details);
-        }
+        private void LogActivity(string action, string details) { DatabaseHelper.LogActivity(currentUser, action, "Documents", details); }
 
         private void buttonUpload_Click(object sender, EventArgs e)
         {
-            if (!SecurityPolicy.CanManageDocuments(currentRole))
-            {
-                Deny();
-                return;
-            }
-
+            if (!SecurityPolicy.HasPermission(currentRole, Permission.DocumentsWrite)) { Deny(); return; }
             string title = textBoxTitle.Text.Trim();
             string category = textBoxCategory.Text.Trim();
             if (title.Length == 0 || category.Length == 0)
             {
-                MessageBox.Show("Enter a document title and category before uploading.", "Document details",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Enter a document title and category before uploading.", "Document details", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
-
             using (OpenFileDialog dialog = new OpenFileDialog())
             {
                 dialog.Title = "Choose a document to upload";
                 dialog.Filter = "Allowed files|" + string.Join(";", AllowedExtensions.Select(ext => "*" + ext).ToArray());
                 if (dialog.ShowDialog(this) != DialogResult.OK) return;
-
                 FileInfo selectedFile = new FileInfo(dialog.FileName);
-                if (!selectedFile.Exists)
-                {
-                    MessageBox.Show("The selected file could not be found.", "Upload failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
+                if (!selectedFile.Exists) { MessageBox.Show("The selected file could not be found.", "Upload failed", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
                 string extension = Path.GetExtension(dialog.FileName);
                 if (!AllowedExtensions.Any(ext => string.Equals(ext, extension, StringComparison.OrdinalIgnoreCase)))
-                {
-                    MessageBox.Show("The selected file type is not allowed for this application.", "Upload failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
+                { MessageBox.Show("The selected file type is not allowed for this application.", "Upload failed", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
                 if (selectedFile.Length == 0 || selectedFile.Length > MaxDocumentSizeBytes)
-                {
-                    MessageBox.Show("The file size must be between 1 byte and 25 MB.", "Upload failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
+                { MessageBox.Show("The file size must be between 1 byte and 25 MB.", "Upload failed", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
 
                 string storedFileName = Guid.NewGuid().ToString("N") + extension;
                 string targetPath = Path.Combine(docsDirectory, storedFileName);
@@ -108,17 +83,14 @@ namespace ManipalDMS
                     Directory.CreateDirectory(docsDirectory);
                     File.Copy(dialog.FileName, targetPath, false);
                     DatabaseHelper.ExecuteNonQuery(
-                        "INSERT INTO Documents (Title, Category, FilePath, StoredFileName, UploadedBy) " +
-                        "VALUES (@Title, @Category, @FilePath, @StoredFileName, @UploadedBy)",
+                        "INSERT INTO dbo.Documents (Title, Category, FilePath, StoredFileName, UploadedBy) VALUES (@Title, @Category, @FilePath, @StoredFileName, @UploadedBy)",
                         new SqlParameter("@Title", SqlDbType.NVarChar, 100) { Value = title },
                         new SqlParameter("@Category", SqlDbType.NVarChar, 50) { Value = category },
                         new SqlParameter("@FilePath", SqlDbType.NVarChar, 255) { Value = targetPath },
                         new SqlParameter("@StoredFileName", SqlDbType.NVarChar, 255) { Value = storedFileName },
                         new SqlParameter("@UploadedBy", SqlDbType.NVarChar, 50) { Value = currentUser });
                     LogActivity("Upload", "File: " + storedFileName + "; Title: " + title);
-                    textBoxTitle.Clear();
-                    textBoxCategory.Clear();
-                    LoadDocs();
+                    textBoxTitle.Clear(); textBoxCategory.Clear(); LoadDocs();
                     MessageBox.Show("Document uploaded successfully.", "Upload complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 catch (Exception ex)
@@ -131,35 +103,13 @@ namespace ManipalDMS
 
         private void buttonDownload_Click(object sender, EventArgs e)
         {
-            if (!SecurityPolicy.CanManageDocuments(currentRole))
-            {
-                Deny();
-                return;
-            }
-
-            if (dataGridView1.SelectedRows.Count == 0)
-            {
-                MessageBox.Show("Select a document to download.", "Download", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
+            if (!SecurityPolicy.HasPermission(currentRole, Permission.DocumentsRead)) { Deny(); return; }
+            if (dataGridView1.SelectedRows.Count == 0) { MessageBox.Show("Select a document to download.", "Download", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
             DataGridViewRow row = dataGridView1.SelectedRows[0];
             string storedFileName = Convert.ToString(row.Cells["StoredFileName"].Value);
-            if (string.IsNullOrWhiteSpace(storedFileName))
-            {
-                MessageBox.Show("This document does not have a stored file name. Refresh after configuring file storage.",
-                    "File unavailable", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
+            if (string.IsNullOrWhiteSpace(storedFileName)) { MessageBox.Show("This document does not have a stored file name.", "File unavailable", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
             string sourcePath = Path.Combine(docsDirectory, Path.GetFileName(storedFileName));
-            if (!File.Exists(sourcePath))
-            {
-                MessageBox.Show("The document file is not present in the storage folder.", "File unavailable",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
+            if (!File.Exists(sourcePath)) { MessageBox.Show("The document file is not present in the storage folder.", "File unavailable", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
             using (SaveFileDialog dialog = new SaveFileDialog())
             {
                 dialog.FileName = Path.GetFileName(sourcePath);
@@ -171,64 +121,40 @@ namespace ManipalDMS
                     LogActivity("Download", "File: " + storedFileName);
                     MessageBox.Show("Document downloaded successfully.", "Download complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
-                catch (Exception ex)
-                {
-                    ShowDatabaseError(ex);
-                }
+                catch (Exception ex) { ShowDatabaseError(ex); }
             }
         }
 
         private void buttonSearch_Click(object sender, EventArgs e)
         {
-            if (!SecurityPolicy.CanManageDocuments(currentRole))
-            {
-                Deny();
-                return;
-            }
-
+            if (!SecurityPolicy.HasPermission(currentRole, Permission.DocumentsRead)) { Deny(); return; }
             DateTime from = dateTimeFrom.Value.Date;
             DateTime to = dateTimeTo.Value.Date;
-            if (from > to)
-            {
-                MessageBox.Show("The start date must be on or before the end date.", "Search dates",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
+            if (from > to) { MessageBox.Show("The start date must be on or before the end date.", "Search dates", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
 
-            string query = "SELECT DocumentID, Title, Category, UploadedBy, UploadDate, StoredFileName FROM Documents WHERE UploadDate >= @From AND UploadDate < @To ORDER BY UploadDate DESC";
+            string query = @"SELECT DocumentID, Title, Category, UploadedBy, UploadDate, StoredFileName
+                             FROM dbo.Documents
+                             WHERE UploadDate >= @From AND UploadDate < @To
+                               AND (@CanViewAll = 1 OR UploadedBy = @CurrentUser)";
             SqlParameter[] parameters = {
                 new SqlParameter("@From", SqlDbType.DateTime) { Value = from },
-                new SqlParameter("@To", SqlDbType.DateTime) { Value = to.AddDays(1) }
+                new SqlParameter("@To", SqlDbType.DateTime) { Value = to.AddDays(1) },
+                new SqlParameter("@CanViewAll", SqlDbType.Bit) { Value = SecurityPolicy.CanViewAllDocuments(currentRole) },
+                new SqlParameter("@CurrentUser", SqlDbType.NVarChar, 50) { Value = currentUser }
             };
             string title = textBoxTitleSearch.Text.Trim();
             string category = textBoxCategorySearch.Text.Trim();
             string uploader = textBoxUploaderSearch.Text.Trim();
-            if (title.Length > 0)
-            {
-                query = query.Replace(" ORDER BY", " AND Title LIKE @Title ORDER BY");
-                parameters = AddParameter(parameters, new SqlParameter("@Title", SqlDbType.NVarChar, 100) { Value = "%" + title + "%" });
-            }
-            if (category.Length > 0)
-            {
-                query = query.Replace(" ORDER BY", " AND Category LIKE @Category ORDER BY");
-                parameters = AddParameter(parameters, new SqlParameter("@Category", SqlDbType.NVarChar, 50) { Value = "%" + category + "%" });
-            }
-            if (uploader.Length > 0)
-            {
-                query = query.Replace(" ORDER BY", " AND UploadedBy LIKE @Uploader ORDER BY");
-                parameters = AddParameter(parameters, new SqlParameter("@Uploader", SqlDbType.NVarChar, 50) { Value = "%" + uploader + "%" });
-            }
-
+            if (!string.IsNullOrEmpty(title)) { query += " AND Title LIKE @Title"; parameters = AddParameter(parameters, new SqlParameter("@Title", SqlDbType.NVarChar, 100) { Value = "%" + title + "%" }); }
+            if (!string.IsNullOrEmpty(category)) { query += " AND Category LIKE @Category"; parameters = AddParameter(parameters, new SqlParameter("@Category", SqlDbType.NVarChar, 50) { Value = "%" + category + "%" }); }
+            if (!string.IsNullOrEmpty(uploader) && SecurityPolicy.CanViewAllDocuments(currentRole)) { query += " AND UploadedBy LIKE @Uploader"; parameters = AddParameter(parameters, new SqlParameter("@Uploader", SqlDbType.NVarChar, 50) { Value = "%" + uploader + "%" }); }
+            query += " ORDER BY UploadDate DESC";
             try
             {
                 dataGridView1.DataSource = DatabaseHelper.ExecuteQuery(query, parameters);
-                LogActivity("Search", string.Format(CultureInfo.CurrentCulture,
-                    "Title:{0}, Category:{1}, Uploader:{2}, From:{3:d}, To:{4:d}", title, category, uploader, from, to));
+                LogActivity("Search", string.Format(CultureInfo.CurrentCulture, "Title:{0}, Category:{1}, Uploader:{2}, From:{3:d}, To:{4:d}", title, category, uploader, from, to));
             }
-            catch (Exception ex)
-            {
-                ShowDatabaseError(ex);
-            }
+            catch (Exception ex) { ShowDatabaseError(ex); }
         }
 
         private static SqlParameter[] AddParameter(SqlParameter[] current, SqlParameter parameter)
@@ -241,36 +167,21 @@ namespace ManipalDMS
 
         private void buttonRefresh_Click(object sender, EventArgs e)
         {
-            if (!SecurityPolicy.CanManageDocuments(currentRole))
-            {
-                Deny();
-                return;
-            }
-
-            textBoxTitleSearch.Clear();
-            textBoxCategorySearch.Clear();
-            textBoxUploaderSearch.Clear();
-            LoadDocs();
+            if (!SecurityPolicy.HasPermission(currentRole, Permission.DocumentsRead)) { Deny(); return; }
+            textBoxTitleSearch.Clear(); textBoxCategorySearch.Clear(); textBoxUploaderSearch.Clear(); LoadDocs();
         }
 
         private void dataGridView1_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
-            if (e.RowIndex >= 0)
-            {
-                dataGridView1.Rows[e.RowIndex].Selected = true;
-                buttonDownload_Click(sender, EventArgs.Empty);
-            }
+            if (e.RowIndex >= 0) { dataGridView1.Rows[e.RowIndex].Selected = true; buttonDownload_Click(sender, EventArgs.Empty); }
         }
 
         private static void ShowDatabaseError(Exception ex)
         {
-            MessageBox.Show("The operation could not be completed. Verify the database settings and document folder permissions.\n\n" + ex.Message,
-                "Manipal DMS", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            System.Diagnostics.Trace.TraceError("Document operation failed: {0}", ex);
+            MessageBox.Show("The operation could not be completed. Verify the database settings and document folder permissions.", "Manipal DMS", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
-        private static void Deny()
-        {
-            MessageBox.Show("You do not have permission to perform this action.", "Authorization", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-        }
+        private static void Deny() { MessageBox.Show("You do not have permission to perform this action.", "Authorization", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
     }
 }

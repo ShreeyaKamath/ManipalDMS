@@ -9,6 +9,7 @@ namespace ManipalDMS
     {
         private readonly string currentUser;
         private readonly string userRole;
+        private readonly Button buttonAudit;
 
         public DashboardForm(string username, string role)
         {
@@ -17,6 +18,21 @@ namespace ManipalDMS
             userRole = role;
             labelRole.Text = "Signed in: " + currentUser + " | " + userRole;
             StartPosition = FormStartPosition.CenterScreen;
+
+            buttonAudit = new Button
+            {
+                Text = "Audit Log",
+                Width = 180,
+                Height = 48,
+                Location = new Point(660, 350),
+                BackColor = Color.FromArgb(65, 85, 110),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 12F, FontStyle.Bold)
+            };
+            buttonAudit.Click += buttonAudit_Click;
+            panelContent.Controls.Add(buttonAudit);
+
             ApplyRoleAccess();
             LoadSummary();
         }
@@ -25,9 +41,12 @@ namespace ManipalDMS
         {
             try
             {
-                labelDocsCount.Text = GetCount("SELECT COUNT(*) FROM dbo.Documents");
-                labelAdsCount.Text = GetCount("SELECT COUNT(*) FROM dbo.Advertisements");
-                labelPubCount.Text = GetCount("SELECT COUNT(*) FROM dbo.Publishing");
+                labelDocsCount.Text = SecurityPolicy.HasPermission(userRole, Permission.DocumentsRead)
+                    ? GetCount("SELECT COUNT(*) FROM dbo.Documents") : "—";
+                labelAdsCount.Text = SecurityPolicy.HasPermission(userRole, Permission.AdsRead)
+                    ? GetCount("SELECT COUNT(*) FROM dbo.Advertisements") : "—";
+                labelPubCount.Text = SecurityPolicy.HasPermission(userRole, Permission.PublishingRead)
+                    ? GetCount("SELECT COUNT(*) FROM dbo.Publishing") : "—";
             }
             catch (Exception ex)
             {
@@ -44,24 +63,21 @@ namespace ManipalDMS
 
         private void ApplyRoleAccess()
         {
-            bool canManageDocuments = SecurityPolicy.CanManageDocuments(userRole);
-            bool canManageAds = SecurityPolicy.CanManageAds(userRole);
-            bool canManagePublishing = SecurityPolicy.CanManagePublishing(userRole);
-            bool canManageUsers = SecurityPolicy.CanManageUsers(userRole);
+            bool docs = SecurityPolicy.CanManageDocuments(userRole);
+            bool ads = SecurityPolicy.CanManageAds(userRole);
+            bool publishing = SecurityPolicy.CanManagePublishing(userRole);
+            bool users = SecurityPolicy.CanManageUsers(userRole);
+            bool audit = SecurityPolicy.CanViewAuditLog(userRole);
 
-            buttonDocs.Enabled = canManageDocuments;
-            buttonAds.Enabled = canManageAds;
-            buttonPublish.Enabled = canManagePublishing;
-            buttonUsers.Enabled = canManageUsers;
+            buttonDocs.Enabled = buttonDocs.Visible = docs;
+            buttonAds.Enabled = buttonAds.Visible = ads;
+            buttonPublish.Enabled = buttonPublish.Visible = publishing;
+            buttonUsers.Enabled = buttonUsers.Visible = users;
+            buttonAudit.Enabled = buttonAudit.Visible = audit;
 
-            buttonDocs.Visible = canManageDocuments;
-            buttonAds.Visible = canManageAds;
-            buttonPublish.Visible = canManagePublishing;
-            buttonUsers.Visible = canManageUsers;
-
-            buttonAds.BackColor = buttonAds.Enabled ? SystemColors.Control : Color.FromArgb(180, 180, 180);
-            buttonPublish.BackColor = buttonPublish.Enabled ? SystemColors.Control : Color.FromArgb(180, 180, 180);
-            buttonUsers.BackColor = buttonUsers.Enabled ? SystemColors.Control : Color.FromArgb(180, 180, 180);
+            buttonAds.BackColor = ads ? SystemColors.Control : Color.FromArgb(180, 180, 180);
+            buttonPublish.BackColor = publishing ? SystemColors.Control : Color.FromArgb(180, 180, 180);
+            buttonUsers.BackColor = users ? SystemColors.Control : Color.FromArgb(180, 180, 180);
         }
 
         private void buttonDocs_Click(object sender, EventArgs e)
@@ -89,6 +105,12 @@ namespace ManipalDMS
         {
             if (!SecurityPolicy.CanManageUsers(userRole)) { Deny(); return; }
             using (UserManagementForm form = new UserManagementForm(currentUser, userRole)) form.ShowDialog(this);
+        }
+
+        private void buttonAudit_Click(object sender, EventArgs e)
+        {
+            if (!SecurityPolicy.CanViewAuditLog(userRole)) { Deny(); return; }
+            using (AuditLogForm form = new AuditLogForm(userRole)) form.ShowDialog(this);
         }
 
         private static void Deny()
