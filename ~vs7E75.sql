@@ -1,92 +1,68 @@
 USE master;
 GO
-
-IF DB_ID(N'PressDMS') IS NULL
-BEGIN
-    CREATE DATABASE PressDMS;
-END
+IF DB_ID(N'PressDMS') IS NULL CREATE DATABASE PressDMS;
 GO
-
 USE PressDMS;
 GO
 
-CREATE TABLE dbo.Roles (
-    RoleID INT IDENTITY(1,1) PRIMARY KEY,
-    RoleName NVARCHAR(30) NOT NULL UNIQUE,
-    Description NVARCHAR(200) NULL
-);
+IF OBJECT_ID(N'dbo.Roles', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Roles (
+        RoleID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Roles PRIMARY KEY,
+        RoleName NVARCHAR(30) NOT NULL CONSTRAINT UQ_Roles_RoleName UNIQUE,
+        Description NVARCHAR(200) NULL
+    );
+END;
+IF NOT EXISTS (SELECT 1 FROM dbo.Roles WHERE RoleName = N'Admin') INSERT dbo.Roles(RoleName, Description) VALUES (N'Admin', N'Administrative access');
+IF NOT EXISTS (SELECT 1 FROM dbo.Roles WHERE RoleName = N'Editor') INSERT dbo.Roles(RoleName, Description) VALUES (N'Editor', N'Document access');
+IF NOT EXISTS (SELECT 1 FROM dbo.Roles WHERE RoleName = N'Accountant') INSERT dbo.Roles(RoleName, Description) VALUES (N'Accountant', N'Financial record access');
 GO
 
-INSERT INTO dbo.Roles (RoleName, Description)
-VALUES
-    (N'Admin', N'Full administrative access'),
-    (N'Editor', N'Can manage documents and metadata'),
-    (N'Accountant', N'Can manage financial records');
-GO
-
+IF OBJECT_ID(N'dbo.Users', N'U') IS NULL
 CREATE TABLE dbo.Users (
-    UserID INT IDENTITY(1,1) PRIMARY KEY,
-    Username NVARCHAR(50) NOT NULL UNIQUE,
-    PasswordHash VARBINARY(64) NOT NULL,
+    UserID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Users PRIMARY KEY,
+    Username NVARCHAR(50) NOT NULL CONSTRAINT UQ_Users_Username UNIQUE,
+    PasswordHash VARBINARY(32) NOT NULL,
     PasswordSalt VARBINARY(32) NOT NULL,
-    PasswordAlgorithm NVARCHAR(20) NOT NULL DEFAULT N'PBKDF2',
-    Role NVARCHAR(30) NOT NULL DEFAULT N'Editor',
-    IsActive BIT NOT NULL DEFAULT 1,
-    FailedLoginAttempts INT NOT NULL DEFAULT 0,
+    PasswordAlgorithm NVARCHAR(30) NOT NULL CONSTRAINT DF_Users_Algorithm DEFAULT N'PBKDF2-SHA256-310000',
+    Role NVARCHAR(30) NOT NULL,
+    IsActive BIT NOT NULL CONSTRAINT DF_Users_IsActive DEFAULT 1,
+    FailedLoginAttempts INT NOT NULL CONSTRAINT DF_Users_Failed DEFAULT 0,
     LockoutUntilUtc DATETIME2 NULL,
-    CreatedUtc DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
-    UpdatedUtc DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    CreatedUtc DATETIME2 NOT NULL CONSTRAINT DF_Users_Created DEFAULT SYSUTCDATETIME(),
+    UpdatedUtc DATETIME2 NOT NULL CONSTRAINT DF_Users_Updated DEFAULT SYSUTCDATETIME(),
     CONSTRAINT FK_Users_Roles FOREIGN KEY (Role) REFERENCES dbo.Roles(RoleName)
 );
 GO
 
+IF OBJECT_ID(N'dbo.Documents', N'U') IS NULL
 CREATE TABLE dbo.Documents (
-    DocumentID INT IDENTITY(1,1) PRIMARY KEY,
-    Title NVARCHAR(150) NOT NULL,
-    Category NVARCHAR(50) NOT NULL,
-    FilePath NVARCHAR(500) NOT NULL,
-    StoredFileName NVARCHAR(255) NOT NULL,
-    UploadedBy NVARCHAR(50) NOT NULL,
-    UploadDate DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    DocumentID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Documents PRIMARY KEY,
+    Title NVARCHAR(100) NOT NULL, Category NVARCHAR(50) NOT NULL,
+    FilePath NVARCHAR(255) NOT NULL, StoredFileName NVARCHAR(255) NOT NULL,
+    UploadedBy NVARCHAR(50) NOT NULL, UploadDate DATETIME2 NOT NULL CONSTRAINT DF_Documents_UploadDate DEFAULT SYSUTCDATETIME()
 );
-GO
-
+IF OBJECT_ID(N'dbo.Advertisements', N'U') IS NULL
 CREATE TABLE dbo.Advertisements (
-    AdID INT IDENTITY(1,1) PRIMARY KEY,
-    ClientName NVARCHAR(150) NOT NULL,
-    AdType NVARCHAR(80) NOT NULL,
-    Cost DECIMAL(12,2) NOT NULL,
-    DatePosted DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    AdID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Advertisements PRIMARY KEY,
+    ClientName NVARCHAR(100) NOT NULL, AdType NVARCHAR(50) NOT NULL,
+    Cost DECIMAL(10,2) NOT NULL, DatePosted DATETIME2 NOT NULL CONSTRAINT DF_Advertisements_Date DEFAULT SYSUTCDATETIME()
 );
-GO
-
+IF OBJECT_ID(N'dbo.Publishing', N'U') IS NULL
 CREATE TABLE dbo.Publishing (
-    PubID INT IDENTITY(1,1) PRIMARY KEY,
-    ArticleTitle NVARCHAR(150) NOT NULL,
-    PublishDate DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
-    Cost DECIMAL(12,2) NOT NULL,
-    Revenue DECIMAL(12,2) NOT NULL
+    PubID INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_Publishing PRIMARY KEY,
+    ArticleTitle NVARCHAR(100) NOT NULL,
+    PublishDate DATETIME2 NOT NULL CONSTRAINT DF_Publishing_Date DEFAULT SYSUTCDATETIME(),
+    Cost DECIMAL(10,2) NOT NULL, Revenue DECIMAL(10,2) NOT NULL
 );
-GO
-
+IF OBJECT_ID(N'dbo.AuditLog', N'U') IS NULL
 CREATE TABLE dbo.AuditLog (
-    LogID BIGINT IDENTITY(1,1) PRIMARY KEY,
-    Username NVARCHAR(50) NOT NULL,
-    Action NVARCHAR(50) NOT NULL,
-    TableAffected NVARCHAR(50) NOT NULL,
-    Timestamp DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
-    Details NVARCHAR(500) NOT NULL
+    LogID BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT PK_AuditLog PRIMARY KEY,
+    Username NVARCHAR(50) NOT NULL, Action NVARCHAR(50) NOT NULL,
+    TableAffected NVARCHAR(50) NOT NULL, [Timestamp] DATETIME2 NOT NULL CONSTRAINT DF_AuditLog_Timestamp DEFAULT SYSUTCDATETIME(),
+    Details NVARCHAR(255) NOT NULL
 );
 GO
 
--- IMPORTANT: Create a dedicated application login via your enterprise provisioning or secret-management workflow.
--- Do not assign sysadmin or SA privileges to the application.
-CREATE USER [ManipalDMS_AppUser] FOR LOGIN [ManipalDMS_AppUser];
-GO
-
-GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.Users TO [ManipalDMS_AppUser];
-GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.Documents TO [ManipalDMS_AppUser];
-GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.Advertisements TO [ManipalDMS_AppUser];
-GRANT SELECT, INSERT, UPDATE, DELETE ON dbo.Publishing TO [ManipalDMS_AppUser];
-GRANT SELECT, INSERT ON dbo.AuditLog TO [ManipalDMS_AppUser];
-GO
+-- No demo accounts, passwords, SQL logins, database users, or permissions are created here.
+-- Existing demo databases require a separately reviewed migration and password reset; do not run this as a data conversion script.

@@ -3,40 +3,40 @@ using System.Security.Cryptography;
 
 namespace ManipalDMS
 {
+    /// <summary>PBKDF2-SHA256 password hashing compatible with .NET Framework 4.7.2.</summary>
     public static class PasswordHashing
     {
-        public static (byte[] Hash, byte[] Salt) HashPassword(string password)
+        public const int SaltSize = 32;
+        public const int HashSize = 32;
+        public const int Iterations = 310000;
+
+        public static void HashPassword(string password, out byte[] hash, out byte[] salt)
         {
-            if (string.IsNullOrWhiteSpace(password))
+            if (string.IsNullOrEmpty(password))
                 throw new ArgumentException("Password cannot be empty.", nameof(password));
 
-            var salt = RandomNumberGenerator.GetBytes(32);
+            salt = new byte[SaltSize];
+            using (RandomNumberGenerator random = RandomNumberGenerator.Create())
+                random.GetBytes(salt);
 
-            using (var pbkdf2 = new Rfc2898DeriveBytes(
-                password,
-                salt,
-                200000,
-                HashAlgorithmName.SHA256))
-            {
-                byte[] hash = pbkdf2.GetBytes(32);
-                return (hash, salt);
-            }
+            using (var derive = new Rfc2898DeriveBytes(password, salt, Iterations, HashAlgorithmName.SHA256))
+                hash = derive.GetBytes(HashSize);
         }
 
         public static bool VerifyPassword(string password, byte[] storedHash, byte[] storedSalt)
         {
-            if (string.IsNullOrWhiteSpace(password))
+            if (string.IsNullOrEmpty(password) || storedHash == null || storedSalt == null ||
+                storedHash.Length != HashSize || storedSalt.Length != SaltSize)
                 return false;
 
-            using (var pbkdf2 = new Rfc2898DeriveBytes(
-                password,
-                storedSalt,
-                200000,
-                HashAlgorithmName.SHA256))
-            {
-                byte[] computedHash = pbkdf2.GetBytes(32);
-                return CryptographicOperations.FixedTimeEquals(computedHash, storedHash);
-            }
+            byte[] computed;
+            using (var derive = new Rfc2898DeriveBytes(password, storedSalt, Iterations, HashAlgorithmName.SHA256))
+                computed = derive.GetBytes(HashSize);
+
+            int difference = 0;
+            for (int i = 0; i < computed.Length; i++)
+                difference |= computed[i] ^ storedHash[i];
+            return difference == 0;
         }
     }
 }
