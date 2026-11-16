@@ -25,59 +25,56 @@ namespace ManipalDMS
         {
             try
             {
-                labelDocsCount.Text = GetCount("SELECT COUNT(*) FROM Documents");
-                labelAdsCount.Text = GetCount("SELECT COUNT(*) FROM Advertisements");
-                labelPubCount.Text = GetCount("SELECT COUNT(*) FROM Publishing");
+                labelDocsCount.Text = GetCount("SELECT COUNT(*) FROM dbo.Documents");
+                labelAdsCount.Text = GetCount("SELECT COUNT(*) FROM dbo.Advertisements");
+                labelPubCount.Text = GetCount("SELECT COUNT(*) FROM dbo.Publishing");
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                labelDocsCount.Text = "--";
-                labelAdsCount.Text = "--";
-                labelPubCount.Text = "--";
+                System.Diagnostics.Trace.TraceError("Unable to load dashboard summary: {0}", ex);
+                labelDocsCount.Text = labelAdsCount.Text = labelPubCount.Text = "--";
             }
         }
 
         private static string GetCount(string query)
         {
             DataTable table = DatabaseHelper.ExecuteQuery(query);
-            if (table.Rows.Count == 0 || table.Rows[0][0] == null || table.Rows[0][0] == DBNull.Value)
-                return "0";
-            return table.Rows[0][0].ToString();
+            return table.Rows.Count == 0 || table.Rows[0][0] == DBNull.Value ? "0" : table.Rows[0][0].ToString();
         }
 
         private void ApplyRoleAccess()
         {
-            if (string.Equals(userRole, "Editor", StringComparison.OrdinalIgnoreCase))
-            {
-                buttonPublish.Enabled = false;
-                buttonPublish.BackColor = Color.FromArgb(180, 180, 180);
-            }
-            else if (string.Equals(userRole, "Accountant", StringComparison.OrdinalIgnoreCase))
-            {
-                buttonAds.Enabled = false;
-                buttonAds.BackColor = Color.FromArgb(180, 180, 180);
-            }
+            buttonDocs.Enabled = SecurityPolicy.CanManageDocuments(userRole);
+            buttonAds.Enabled = SecurityPolicy.CanManageAds(userRole);
+            buttonPublish.Enabled = SecurityPolicy.CanManagePublishing(userRole);
+            buttonAds.BackColor = buttonAds.Enabled ? SystemColors.Control : Color.FromArgb(180, 180, 180);
+            buttonPublish.BackColor = buttonPublish.Enabled ? SystemColors.Control : Color.FromArgb(180, 180, 180);
         }
 
         private void buttonDocs_Click(object sender, EventArgs e)
         {
-            using (DocumentsForm form = new DocumentsForm(currentUser))
-                form.ShowDialog(this);
+            if (!SecurityPolicy.CanManageDocuments(userRole)) { Deny(); return; }
+            using (DocumentsForm form = new DocumentsForm(currentUser)) form.ShowDialog(this);
             LoadSummary();
         }
 
         private void buttonAds_Click(object sender, EventArgs e)
         {
-            using (AdsForm form = new AdsForm(currentUser))
-                form.ShowDialog(this);
+            if (!SecurityPolicy.CanManageAds(userRole)) { Deny(); return; }
+            using (AdsForm form = new AdsForm(currentUser, userRole)) form.ShowDialog(this);
             LoadSummary();
         }
 
         private void buttonPublish_Click(object sender, EventArgs e)
         {
-            using (PublishingForm form = new PublishingForm(currentUser))
-                form.ShowDialog(this);
+            if (!SecurityPolicy.CanManagePublishing(userRole)) { Deny(); return; }
+            using (PublishingForm form = new PublishingForm(currentUser, userRole)) form.ShowDialog(this);
             LoadSummary();
+        }
+
+        private static void Deny()
+        {
+            MessageBox.Show("You do not have permission to perform this action.", "Authorization", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
 }

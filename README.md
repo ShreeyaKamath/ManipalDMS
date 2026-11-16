@@ -1,14 +1,27 @@
 # ManipalDMS
 
-ManipalDMS is a Windows desktop document management application built with C# Windows Forms and SQL Server. The application provides sign-in, document management, advertisement tracking, and publishing records.
+ManipalDMS is a Windows desktop document management application built with C# Windows Forms and SQL Server. It provides sign-in, document management, advertisement tracking, and publishing workflows with audit logging and role-based access control.
+
+## Production readiness status
+
+This repository has been hardened for production-oriented deployment by removing destructive SQL setup steps, enforcing hashed password verification, narrowing file upload risk, and standardizing secure configuration.
+
+## Key security changes
+
+- Password verification uses PBKDF2 hashing with a per-user salt instead of plaintext database comparison.
+- The sample SQL scripts no longer drop the database or create privileged SA accounts with hardcoded credentials.
+- The document storage directory uses the shared application data location instead of the current user profile folder.
+- File upload validation restricts file type and size.
+- Application configuration is environment-specific and avoids insecure local defaults.
+- Role-based authorization is enforced in the app before exposing management screens.
 
 ## Interactive features
 
-- Sign in against the `Users` table; the signed-in username is used for document ownership and audit entries.
-- Upload documents, record their metadata, search by title/category/uploader/date range, refresh results, and download the selected file (or double-click a row).
+- Sign in against the `Users` table using a hashed password and role lookup.
+- Upload documents, record metadata, search by title/category/uploader/date range, refresh results, and download the selected file.
 - Add and review advertisement and publishing records with input validation and automatic list refresh.
 - Record audit entries for uploads, downloads, searches, and newly created business records.
-- SQL operations use parameters, and uploaded files are stored under the current Windows user's Local AppData folder in `ManipalDMS/Documents`.
+- Uploaded files are stored under the secure shared application folder in `ProgramData\ManipalDMS\Documents`.
 
 ## Requirements
 
@@ -20,13 +33,18 @@ ManipalDMS is a Windows desktop document management application built with C# Wi
 ## Setup
 
 1. Open `ManipalDMS.sln` in Visual Studio.
-2. Review `~vs7E75.sql` before running it in SQL Server Management Studio. **It drops and recreates the `PressDMS` database.** Back up any existing data first. The script creates the tables and local demo accounts.
-3. In `App.config`, update the `PressDMS` connection string's server name if needed. It uses Windows Integrated Security; grant the Windows account running the app appropriate database permissions.
-4. Build and run the solution. Demo credentials from the seed script: `admin` / `admin123`, `editor` / `editor123`, or `accountant` / `acct123`.
+2. Review and run `~vs7E75.sql` in SQL Server Management Studio. The script creates the production-safe schema without dropping the database. Back up any existing data before applying a migration.
+3. Update `App.config` with the deployment-specific SQL Server name and authentication settings.
+4. Build and run the solution.
+5. Create application users through a secure provisioning workflow and assign roles through the database or an admin process.
 
 ## Important security notes
 
-This is a local/demo application, not production-ready. The sample schema stores demo passwords as plaintext; replace this with a vetted password-hashing and account-management design before using real accounts. Apply least-privilege SQL permissions, validate deployment-specific role authorization, and secure the local document storage folder. Do not use the sample credentials or destructive seed script with sensitive data.
+- Never store plaintext passwords in the application or database.
+- Do not commit real credentials, connection strings, or secret values to source control.
+- Provision SQL logins and permissions using a least-privilege process managed by your environment.
+- Treat the sample schema as a starting template only; it must be replaced with your secure identity and access-control design before production use.
+- Review file storage permissions on the `ProgramData\ManipalDMS\Documents` directory before deployment.
 
 ## Project structure
 
@@ -36,7 +54,10 @@ This is a local/demo application, not production-ready. The sample schema stores
 - `DocumentsForm.cs` — upload, download, and search
 - `AdsForm.cs`, `PublishingForm.cs` — business record entry and display
 - `DatabaseHelper.cs` — parameterized SQL Server access and audit logging
-- `~vs7E75.sql` — sample database schema and seed data (review before running)
+- `PasswordHashing.cs` — PBKDF2 hashing and verification
+- `SecurityPolicy.cs` — centralized role authorization rules
+- `~vs7E75.sql` — secure schema creation script
+- `~vs2C9E.sql` — intentionally empty of credentials; use your enterprise provisioning workflow instead
 
 ## License
 

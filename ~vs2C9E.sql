@@ -1,9 +1,6 @@
-CREATE LOGIN sa WITH PASSWORD = 'shreeyakamatH7', CHECK_POLICY = OFF;
-ALTER SERVER ROLE sysadmin ADD MEMBER sa;
-ALTER LOGIN sa ENABLE;
-ALTER LOGIN sa WITH PASSWORD = 'shreeyakamatH7';
-EXEC sp_addsrvrolemember 'sa', 'sysadmin';
-SELECT name, is_disabled
-FROM sys.sql_logins
-WHERE name = 'sa';
-ALTER LOGIN sa WITH PASSWORD = 'shreeyakamatH7' UNLOCK, CHECK_POLICY = OFF;
+-- This repository intentionally does not include privileged database creation scripts.
+-- Provision production SQL logins and model-specific permissions through your enterprise access-management process.
+-- Use least privilege, environment-managed secrets, and deployment validation.
+
+PRINT 'No privileged credential creation is included in this repository.';
+GO
