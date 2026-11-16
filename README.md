@@ -1,64 +1,18 @@
 # ManipalDMS
 
-ManipalDMS is a Windows desktop document management application built with C# Windows Forms and SQL Server. It provides sign-in, document management, advertisement tracking, and publishing workflows with audit logging and role-based access control.
+ManipalDMS is a Windows desktop document management application built with C# Windows Forms and SQL Server. It provides sign-in, document management, advertisement tracking, and publishing workflow.
 
-## Production readiness status
+## Security and RBAC
 
-This repository has been hardened for production-oriented deployment by removing destructive SQL setup steps, enforcing hashed password verification, narrowing file upload risk, and standardizing secure configuration.
-
-## Key security changes
-
-- Password verification uses PBKDF2 hashing with a per-user salt instead of plaintext database comparison.
-- The sample SQL scripts no longer drop the database or create privileged SA accounts with hardcoded credentials.
-- The document storage directory uses the shared application data location instead of the current user profile folder.
-- File upload validation restricts file type and size.
-- Application configuration is environment-specific and avoids insecure local defaults.
-- Role-based authorization is enforced in the app before exposing management screens.
-
-## Interactive features
-
-- Sign in against the `Users` table using a hashed password and role lookup.
-- Upload documents, record metadata, search by title/category/uploader/date range, refresh results, and download the selected file.
-- Add and review advertisement and publishing records with input validation and automatic list refresh.
-- Record audit entries for uploads, downloads, searches, and newly created business records.
-- Uploaded files are stored under the secure shared application folder in `ProgramData\ManipalDMS\Documents`.
-
-## Requirements
-
-- Windows
-- Visual Studio with .NET desktop development tools
-- .NET Framework 4.7.2 Developer Pack
-- SQL Server or SQL Server Express
+The application uses PBKDF2-SHA256 password hashes, failed-login lockouts, database-backed role permission grants, role-aware module access, document uploader filtering for Editors, admin user management, and an audit log viewer with username/action/date filters. These controls are defense in depth for the desktop UI, not a substitute for trusted backend/database authorization.
 
 ## Setup
 
-1. Open `ManipalDMS.sln` in Visual Studio.
-2. Review and run `~vs7E75.sql` in SQL Server Management Studio. The script creates the production-safe schema without dropping the database. Back up any existing data before applying a migration.
-3. Update `App.config` with the deployment-specific SQL Server name and authentication settings.
-4. Build and run the solution.
-5. Create application users through a secure provisioning workflow and assign roles through the database or an admin process.
+1. Open `ManipalDMS.sln` in Visual Studio with the .NET Framework 4.7.2 Developer Pack.
+2. Run `~vs7E75.sql` in a non-production SQL Server database.
+3. Run `scripts/002_rbac_permissions.sql` and `scripts/003_user_provisioning.sql` in that order.
+4. Configure the `PressDMS` connection string in `App.config` for your deployment. Do not commit credentials.
+5. Build and run the solution. Create the initial administrator through a separately controlled provisioning workflow; scripts do not create an account or password.
+6. Verify user roles, disabled account rejection, document filtering, audit filtering, and module read/write grants before deployment.
 
-## Important security notes
-
-- Never store plaintext passwords in the application or database.
-- Do not commit real credentials, connection strings, or secret values to source control.
-- Provision SQL logins and permissions using a least-privilege process managed by your environment.
-- Treat the sample schema as a starting template only; it must be replaced with your secure identity and access-control design before production use.
-- Review file storage permissions on the `ProgramData\ManipalDMS\Documents` directory before deployment.
-
-## Project structure
-
-- `ManipalDMS.sln` / `ManipalDMS.csproj` — Visual Studio solution and project
-- `Program.cs` — application entry point
-- `LoginForm.cs`, `DashboardForm.cs` — sign-in and navigation
-- `DocumentsForm.cs` — upload, download, and search
-- `AdsForm.cs`, `PublishingForm.cs` — business record entry and display
-- `DatabaseHelper.cs` — parameterized SQL Server access and audit logging
-- `PasswordHashing.cs` — PBKDF2 hashing and verification
-- `SecurityPolicy.cs` — centralized role authorization rules
-- `~vs7E75.sql` — secure schema creation script
-- `~vs2C9E.sql` — intentionally empty of credentials; use your enterprise provisioning workflow instead
-
-## License
-
-See [LICENSE](LICENSE).
+For details and security limitations, see [RBAC.md](RBAC.md) and [DEPLOYMENT.md](DEPLOYMENT.md).

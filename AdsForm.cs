@@ -13,7 +13,7 @@ namespace ManipalDMS
 
         public AdsForm(string username, string role)
         {
-            if (!SecurityPolicy.CanManageAds(role)) throw new UnauthorizedAccessException("Role is not authorized to manage advertisements.");
+            if (!SecurityPolicy.HasPermission(role, Permission.AdsRead)) throw new UnauthorizedAccessException("Role is not authorized to view advertisements.");
             InitializeComponent();
             currentUser = username;
             currentRole = role;
@@ -22,27 +22,26 @@ namespace ManipalDMS
             dataGridViewAds.AllowUserToDeleteRows = false;
             dataGridViewAds.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             dataGridViewAds.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            buttonAddAd.Enabled = SecurityPolicy.HasPermission(currentRole, Permission.AdsWrite);
             LoadAds();
         }
 
         private void LoadAds()
         {
-            try { dataGridViewAds.DataSource = DatabaseHelper.ExecuteQuery("SELECT * FROM dbo.Advertisements ORDER BY DatePosted DESC"); }
+            if (!SecurityPolicy.HasPermission(currentRole, Permission.AdsRead)) throw new UnauthorizedAccessException("Advertisement read permission is required.");
+            try { dataGridViewAds.DataSource = DatabaseHelper.ExecuteQuery("SELECT AdID, ClientName, AdType, Cost, DatePosted FROM dbo.Advertisements ORDER BY DatePosted DESC"); }
             catch (Exception ex) { ShowError(ex); }
         }
 
         private void buttonAddAd_Click(object sender, EventArgs e)
         {
-            if (!SecurityPolicy.CanManageAds(currentRole)) { Deny(); return; }
+            if (!SecurityPolicy.HasPermission(currentRole, Permission.AdsWrite)) { Deny(); return; }
             string client = textBoxClient.Text.Trim();
             string type = textBoxType.Text.Trim();
             decimal cost;
             if (client.Length == 0 || type.Length == 0 || client.Length > 100 || type.Length > 50 ||
                 !decimal.TryParse(textBoxCost.Text, NumberStyles.Currency, CultureInfo.CurrentCulture, out cost) || cost < 0 || cost >= 100000000m)
-            {
-                MessageBox.Show("Enter valid advertisement details and a non-negative cost.", "Advertisement details", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
+            { MessageBox.Show("Enter valid advertisement details and a non-negative cost.", "Advertisement details", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
             try
             {
                 DatabaseHelper.ExecuteNonQuery("INSERT INTO dbo.Advertisements (ClientName, AdType, Cost) VALUES (@ClientName, @AdType, @Cost)",
