@@ -1,20 +1,27 @@
 USE master;
-IF EXISTS (SELECT name FROM sys.databases WHERE name = N'PressDMS')
+GO
+
+IF DB_ID(N'PressDMS') IS NULL
 BEGIN
-    ALTER DATABASE PressDMS SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-    DROP DATABASE PressDMS;
+    CREATE DATABASE PressDMS;
 END
 GO
-CREATE DATABASE PressDMS;
-GO
+
 USE PressDMS;
 GO
 
 CREATE TABLE Users (
     UserID INT IDENTITY(1,1) PRIMARY KEY,
     Username NVARCHAR(50) UNIQUE NOT NULL,
-    Password NVARCHAR(50) NOT NULL,
-    Role NVARCHAR(20) NOT NULL
+    PasswordHash VARBINARY(64) NOT NULL,
+    PasswordSalt VARBINARY(32) NOT NULL,
+    PasswordAlgorithm NVARCHAR(20) NOT NULL DEFAULT 'PBKDF2',
+    Role NVARCHAR(20) NOT NULL,
+    IsActive BIT NOT NULL DEFAULT 1,
+    FailedLoginAttempts INT NOT NULL DEFAULT 0,
+    LockoutUntilUtc DATETIME2 NULL,
+    CreatedUtc DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    UpdatedUtc DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
 );
 
 CREATE TABLE Documents (
@@ -24,50 +31,35 @@ CREATE TABLE Documents (
     FilePath NVARCHAR(255) NOT NULL,
     StoredFileName NVARCHAR(255) NOT NULL,
     UploadedBy NVARCHAR(50) NOT NULL,
-    UploadDate DATETIME NOT NULL DEFAULT GETDATE()
+    UploadDate DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
 );
 
 CREATE TABLE Advertisements (
     AdID INT IDENTITY(1,1) PRIMARY KEY,
-    ClientName NVARCHAR(100),
-    AdType NVARCHAR(50),
-    Cost DECIMAL(10,2),
-    DatePosted DATETIME DEFAULT GETDATE()
+    ClientName NVARCHAR(100) NOT NULL,
+    AdType NVARCHAR(50) NOT NULL,
+    Cost DECIMAL(10,2) NOT NULL,
+    DatePosted DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
 );
 
 CREATE TABLE Publishing (
     PubID INT IDENTITY(1,1) PRIMARY KEY,
-    ArticleTitle NVARCHAR(100),
-    PublishDate DATETIME DEFAULT GETDATE(),
-    Cost DECIMAL(10,2),
-    Revenue DECIMAL(10,2)
+    ArticleTitle NVARCHAR(100) NOT NULL,
+    PublishDate DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    Cost DECIMAL(10,2) NOT NULL,
+    Revenue DECIMAL(10,2) NOT NULL
 );
 
 CREATE TABLE AuditLog (
     LogID INT IDENTITY(1,1) PRIMARY KEY,
-    Username NVARCHAR(50),
-    Action NVARCHAR(50),
-    TableAffected NVARCHAR(50),
-    Timestamp DATETIME DEFAULT GETDATE(),
-    Details NVARCHAR(255)
+    Username NVARCHAR(50) NOT NULL,
+    Action NVARCHAR(50) NOT NULL,
+    TableAffected NVARCHAR(50) NOT NULL,
+    Timestamp DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    Details NVARCHAR(255) NOT NULL
 );
 
--- Local demo accounts only. Replace with securely managed, hashed credentials before deployment.
-INSERT INTO Users (Username, Password, Role)
-VALUES ('admin', 'admin123', 'Admin'),
-       ('editor', 'editor123', 'Editor'),
-       ('accountant', 'acct123', 'Accountant');
-
--- Sample metadata. These example files are not included in the repository.
-INSERT INTO Documents (Title, Category, FilePath, StoredFileName, UploadedBy)
-VALUES ('Marketing Strategy', 'Advertisement', 'C:\\Docs\\Marketing.pdf', 'Marketing.pdf', 'editor'),
-       ('Financial Report', 'Accounts', 'C:\\Docs\\Finance.xlsx', 'Finance.xlsx', 'accountant');
-
-INSERT INTO Advertisements (ClientName, AdType, Cost)
-VALUES ('ABC Corp', 'Newspaper Ad', 2500.00),
-       ('XYZ Pvt Ltd', 'Online Banner', 1800.00);
-
-INSERT INTO Publishing (ArticleTitle, PublishDate, Cost, Revenue)
-VALUES ('Annual Review 2025', GETDATE(), 5000.00, 8000.00),
-       ('Tech Insights', GETDATE(), 3000.00, 5000.00);
+-- The application should provision users through a secure admin workflow.
+-- Production authentication must use strong password hashing and environment-managed secrets.
+-- Do not seed demo credentials or sample password values into production code repositories.
 GO

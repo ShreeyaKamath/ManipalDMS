@@ -1,9 +1,12 @@
-CREATE LOGIN sa WITH PASSWORD = 'shreeyakamatH7', CHECK_POLICY = OFF;
-ALTER SERVER ROLE sysadmin ADD MEMBER sa;
-ALTER LOGIN sa ENABLE;
-ALTER LOGIN sa WITH PASSWORD = 'shreeyakamatH7';
-EXEC sp_addsrvrolemember 'sa', 'sysadmin';
-SELECT name, is_disabled
-FROM sys.sql_logins
-WHERE name = 'sa';
-ALTER LOGIN sa WITH PASSWORD = 'shreeyakamatH7' UNLOCK, CHECK_POLICY = OFF;
+-- This repository intentionally does not include privileged database creation scripts.
+-- Provision production SQL logins and role memberships through your enterprise access-management process.
+-- Use the least-privilege principle, secure secret storage, and environment-specific deployment policies.
+
+-- Example secure pattern for a DBA-managed deployment:
+-- 1. Create a dedicated application login.
+-- 2. Grant only the minimum database permissions required for the application.
+-- 3. Store the secret in a secure vault or Windows Credential Manager.
+-- 4. Validate access and role mapping during deployment.
+
+PRINT 'No privileged credential creation is included in this repository.';
+GO

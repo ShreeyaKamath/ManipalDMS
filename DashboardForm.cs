@@ -47,16 +47,36 @@ namespace ManipalDMS
 
         private void ApplyRoleAccess()
         {
-            if (string.Equals(userRole, "Editor", StringComparison.OrdinalIgnoreCase))
+            bool canViewDocuments = IsRole("Admin") || IsRole("Editor") || IsRole("Accountant");
+            bool canManageAdvertisements = IsRole("Admin");
+            bool canManagePublishing = IsRole("Admin");
+
+            buttonDocs.Enabled = canViewDocuments;
+            buttonAds.Enabled = canManageAdvertisements;
+            buttonPublish.Enabled = canManagePublishing;
+
+            if (!canManageAdvertisements)
             {
-                buttonPublish.Enabled = false;
-                buttonPublish.BackColor = Color.FromArgb(180, 180, 180);
-            }
-            else if (string.Equals(userRole, "Accountant", StringComparison.OrdinalIgnoreCase))
-            {
-                buttonAds.Enabled = false;
                 buttonAds.BackColor = Color.FromArgb(180, 180, 180);
             }
+            else
+            {
+                buttonAds.BackColor = SystemColors.Control;
+            }
+
+            if (!canManagePublishing)
+            {
+                buttonPublish.BackColor = Color.FromArgb(180, 180, 180);
+            }
+            else
+            {
+                buttonPublish.BackColor = SystemColors.Control;
+            }
+        }
+
+        private bool IsRole(string requiredRole)
+        {
+            return string.Equals(userRole, requiredRole, StringComparison.OrdinalIgnoreCase);
         }
 
         private void buttonDocs_Click(object sender, EventArgs e)
@@ -68,6 +88,13 @@ namespace ManipalDMS
 
         private void buttonAds_Click(object sender, EventArgs e)
         {
+            if (!IsRole("Admin"))
+            {
+                MessageBox.Show("Access denied. Only administrators can manage advertisements.", "Authorization",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             using (AdsForm form = new AdsForm(currentUser))
                 form.ShowDialog(this);
             LoadSummary();
@@ -75,6 +102,13 @@ namespace ManipalDMS
 
         private void buttonPublish_Click(object sender, EventArgs e)
         {
+            if (!IsRole("Admin"))
+            {
+                MessageBox.Show("Access denied. Only administrators can manage publishing records.", "Authorization",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             using (PublishingForm form = new PublishingForm(currentUser))
                 form.ShowDialog(this);
             LoadSummary();

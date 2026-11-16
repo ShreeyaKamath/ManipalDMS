@@ -3,14 +3,18 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace ManipalDMS
 {
     public partial class DocumentsForm : Form
     {
+        private const long MaxDocumentSizeBytes = 25L * 1024L * 1024L;
+        private static readonly string[] AllowedExtensions = { ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".txt", ".csv", ".png", ".jpg", ".jpeg" };
+
         private readonly string docsDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ManipalDMS", "Documents");
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ManipalDMS", "Documents");
         private readonly string currentUser;
 
         public DocumentsForm(string username)
@@ -63,15 +67,35 @@ namespace ManipalDMS
             using (OpenFileDialog dialog = new OpenFileDialog())
             {
                 dialog.Title = "Choose a document to upload";
-                dialog.Filter = "All files (*.*)|*.*";
+                dialog.Filter = "Allowed files|" + string.Join(";", AllowedExtensions.Select(ext => "*" + ext).ToArray());
                 if (dialog.ShowDialog(this) != DialogResult.OK) return;
 
-                string storedFileName = Guid.NewGuid().ToString("N") + Path.GetExtension(dialog.FileName);
+                FileInfo selectedFile = new FileInfo(dialog.FileName);
+                if (!selectedFile.Exists)
+                {
+                    MessageBox.Show("The selected file could not be found.", "Upload failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                string extension = Path.GetExtension(dialog.FileName);
+                if (!Array.Exists(AllowedExtensions, allowedExt => string.Equals(allowedExt, extension, StringComparison.OrdinalIgnoreCase)))
+                {
+                    MessageBox.Show("The selected file type is not allowed for this application.", "Upload failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                if (selectedFile.Length == 0 || selectedFile.Length > MaxDocumentSizeBytes)
+                {
+                    MessageBox.Show("The file size must be between 1 byte and 25 MB.", "Upload failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                string storedFileName = Guid.NewGuid().ToString("N") + extension;
                 string targetPath = Path.Combine(docsDirectory, storedFileName);
                 try
                 {
                     Directory.CreateDirectory(docsDirectory);
-                    File.Copy(dialog.FileName, targetPath);
+                    File.Copy(dialog.FileName, targetPath, false);
                     DatabaseHelper.ExecuteNonQuery(
                         "INSERT INTO Documents (Title, Category, FilePath, StoredFileName, UploadedBy) " +
                         "VALUES (@Title, @Category, @FilePath, @StoredFileName, @UploadedBy)",
