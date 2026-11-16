@@ -44,9 +44,18 @@ namespace ManipalDMS
 
         private void ApplyRoleAccess()
         {
-            buttonDocs.Enabled = SecurityPolicy.CanManageDocuments(userRole);
-            buttonAds.Enabled = SecurityPolicy.CanManageAds(userRole);
-            buttonPublish.Enabled = SecurityPolicy.CanManagePublishing(userRole);
+            bool canManageDocuments = SecurityPolicy.CanManageDocuments(userRole);
+            bool canManageAds = SecurityPolicy.CanManageAds(userRole);
+            bool canManagePublishing = SecurityPolicy.CanManagePublishing(userRole);
+
+            buttonDocs.Enabled = canManageDocuments;
+            buttonAds.Enabled = canManageAds;
+            buttonPublish.Enabled = canManagePublishing;
+
+            buttonDocs.Visible = canManageDocuments;
+            buttonAds.Visible = canManageAds;
+            buttonPublish.Visible = canManagePublishing;
+
             buttonAds.BackColor = buttonAds.Enabled ? SystemColors.Control : Color.FromArgb(180, 180, 180);
             buttonPublish.BackColor = buttonPublish.Enabled ? SystemColors.Control : Color.FromArgb(180, 180, 180);
         }
@@ -54,7 +63,7 @@ namespace ManipalDMS
         private void buttonDocs_Click(object sender, EventArgs e)
         {
             if (!SecurityPolicy.CanManageDocuments(userRole)) { Deny(); return; }
-            using (DocumentsForm form = new DocumentsForm(currentUser)) form.ShowDialog(this);
+            using (DocumentsForm form = new DocumentsForm(currentUser, userRole)) form.ShowDialog(this);
             LoadSummary();
         }
 

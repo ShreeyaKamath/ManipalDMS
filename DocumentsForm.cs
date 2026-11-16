@@ -16,11 +16,16 @@ namespace ManipalDMS
         private readonly string docsDirectory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ManipalDMS", "Documents");
         private readonly string currentUser;
+        private readonly string currentRole;
 
-        public DocumentsForm(string username)
+        public DocumentsForm(string username, string role)
         {
+            if (!SecurityPolicy.CanManageDocuments(role))
+                throw new UnauthorizedAccessException("Role is not authorized to manage documents.");
+
             InitializeComponent();
             currentUser = username;
+            currentRole = role;
             textBoxUploadedBy.Text = currentUser;
             textBoxUploadedBy.ReadOnly = true;
             dateTimeFrom.Value = DateTime.Today.AddYears(-10);
@@ -55,6 +60,12 @@ namespace ManipalDMS
 
         private void buttonUpload_Click(object sender, EventArgs e)
         {
+            if (!SecurityPolicy.CanManageDocuments(currentRole))
+            {
+                Deny();
+                return;
+            }
+
             string title = textBoxTitle.Text.Trim();
             string category = textBoxCategory.Text.Trim();
             if (title.Length == 0 || category.Length == 0)
@@ -120,6 +131,12 @@ namespace ManipalDMS
 
         private void buttonDownload_Click(object sender, EventArgs e)
         {
+            if (!SecurityPolicy.CanManageDocuments(currentRole))
+            {
+                Deny();
+                return;
+            }
+
             if (dataGridView1.SelectedRows.Count == 0)
             {
                 MessageBox.Show("Select a document to download.", "Download", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -163,6 +180,12 @@ namespace ManipalDMS
 
         private void buttonSearch_Click(object sender, EventArgs e)
         {
+            if (!SecurityPolicy.CanManageDocuments(currentRole))
+            {
+                Deny();
+                return;
+            }
+
             DateTime from = dateTimeFrom.Value.Date;
             DateTime to = dateTimeTo.Value.Date;
             if (from > to)
@@ -218,6 +241,12 @@ namespace ManipalDMS
 
         private void buttonRefresh_Click(object sender, EventArgs e)
         {
+            if (!SecurityPolicy.CanManageDocuments(currentRole))
+            {
+                Deny();
+                return;
+            }
+
             textBoxTitleSearch.Clear();
             textBoxCategorySearch.Clear();
             textBoxUploaderSearch.Clear();
@@ -237,6 +266,11 @@ namespace ManipalDMS
         {
             MessageBox.Show("The operation could not be completed. Verify the database settings and document folder permissions.\n\n" + ex.Message,
                 "Manipal DMS", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+
+        private static void Deny()
+        {
+            MessageBox.Show("You do not have permission to perform this action.", "Authorization", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
 }
