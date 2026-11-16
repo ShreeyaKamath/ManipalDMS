@@ -1,4 +1,10 @@
-﻿namespace ManipalDMS
+using System;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Windows.Forms;
+
+namespace ManipalDMS
 {
     partial class DashboardForm
     {
@@ -20,6 +26,7 @@
         private System.Windows.Forms.Button buttonDocs;
         private System.Windows.Forms.Button buttonAds;
         private System.Windows.Forms.Button buttonPublish;
+        private System.Windows.Forms.Button buttonUsers;
 
         protected override void Dispose(bool disposing)
         {
@@ -46,6 +53,7 @@
             this.buttonDocs = new System.Windows.Forms.Button();
             this.buttonAds = new System.Windows.Forms.Button();
             this.buttonPublish = new System.Windows.Forms.Button();
+            this.buttonUsers = new System.Windows.Forms.Button();
             this.panelHeader.SuspendLayout();
             this.panelContent.SuspendLayout();
             this.cardDocuments.SuspendLayout();
@@ -98,6 +106,7 @@
             this.panelContent.Controls.Add(this.buttonDocs);
             this.panelContent.Controls.Add(this.buttonAds);
             this.panelContent.Controls.Add(this.buttonPublish);
+            this.panelContent.Controls.Add(this.buttonUsers);
             this.panelContent.Dock = System.Windows.Forms.DockStyle.Fill;
             this.panelContent.Location = new System.Drawing.Point(0, 110);
             this.panelContent.Name = "panelContent";
@@ -220,6 +229,18 @@
             this.buttonPublish.Text = "Publishing";
             this.buttonPublish.UseVisualStyleBackColor = false;
             this.buttonPublish.Click += new System.EventHandler(this.buttonPublish_Click);
+
+            this.buttonUsers.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(108)))), ((int)(((byte)(117)))), ((int)(((byte)(125)))));
+            this.buttonUsers.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.buttonUsers.Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.buttonUsers.ForeColor = System.Drawing.Color.White;
+            this.buttonUsers.Location = new System.Drawing.Point(385, 340);
+            this.buttonUsers.Name = "buttonUsers";
+            this.buttonUsers.Size = new System.Drawing.Size(230, 72);
+            this.buttonUsers.TabIndex = 9;
+            this.buttonUsers.Text = "Users";
+            this.buttonUsers.UseVisualStyleBackColor = false;
+            this.buttonUsers.Click += new System.EventHandler(this.buttonUsers_Click);
 
             this.ClientSize = new System.Drawing.Size(1000, 560);
             this.Controls.Add(this.panelHeader);

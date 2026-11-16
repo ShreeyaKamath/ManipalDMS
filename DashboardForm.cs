@@ -47,17 +47,21 @@ namespace ManipalDMS
             bool canManageDocuments = SecurityPolicy.CanManageDocuments(userRole);
             bool canManageAds = SecurityPolicy.CanManageAds(userRole);
             bool canManagePublishing = SecurityPolicy.CanManagePublishing(userRole);
+            bool canManageUsers = SecurityPolicy.CanManageUsers(userRole);
 
             buttonDocs.Enabled = canManageDocuments;
             buttonAds.Enabled = canManageAds;
             buttonPublish.Enabled = canManagePublishing;
+            buttonUsers.Enabled = canManageUsers;
 
             buttonDocs.Visible = canManageDocuments;
             buttonAds.Visible = canManageAds;
             buttonPublish.Visible = canManagePublishing;
+            buttonUsers.Visible = canManageUsers;
 
             buttonAds.BackColor = buttonAds.Enabled ? SystemColors.Control : Color.FromArgb(180, 180, 180);
             buttonPublish.BackColor = buttonPublish.Enabled ? SystemColors.Control : Color.FromArgb(180, 180, 180);
+            buttonUsers.BackColor = buttonUsers.Enabled ? SystemColors.Control : Color.FromArgb(180, 180, 180);
         }
 
         private void buttonDocs_Click(object sender, EventArgs e)
@@ -79,6 +83,12 @@ namespace ManipalDMS
             if (!SecurityPolicy.CanManagePublishing(userRole)) { Deny(); return; }
             using (PublishingForm form = new PublishingForm(currentUser, userRole)) form.ShowDialog(this);
             LoadSummary();
+        }
+
+        private void buttonUsers_Click(object sender, EventArgs e)
+        {
+            if (!SecurityPolicy.CanManageUsers(userRole)) { Deny(); return; }
+            using (UserManagementForm form = new UserManagementForm(currentUser, userRole)) form.ShowDialog(this);
         }
 
         private static void Deny()

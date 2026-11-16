@@ -16,7 +16,9 @@ namespace ManipalDMS
         AdsRead,
         AdsWrite,
         PublishingRead,
-        PublishingWrite
+        PublishingWrite,
+        UsersRead,
+        UsersWrite
     }
 
     public static class SecurityPolicy
@@ -52,6 +54,10 @@ namespace ManipalDMS
                     return HasRole(role, UserRole.Admin)
                         || HasRole(role, UserRole.Accountant);
 
+                case Permission.UsersRead:
+                case Permission.UsersWrite:
+                    return HasRole(role, UserRole.Admin);
+
                 default:
                     return false;
             }
@@ -77,6 +83,12 @@ namespace ManipalDMS
         {
             return HasPermission(role, Permission.PublishingRead)
                 && HasPermission(role, Permission.PublishingWrite);
+        }
+
+        public static bool CanManageUsers(string role)
+        {
+            return HasPermission(role, Permission.UsersRead)
+                && HasPermission(role, Permission.UsersWrite);
         }
     }
 }
