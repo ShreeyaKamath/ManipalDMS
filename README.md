@@ -4,15 +4,15 @@ ManipalDMS is a Windows desktop document management application built with C# Wi
 
 ## Production readiness status
 
-This repository has been hardened for production-oriented deployment by removing destructive SQL setup steps, requiring hashed passwords, narrowing file upload risk, and standardizing secure configuration.
+This repository has been hardened for production-oriented deployment by removing destructive SQL setup steps, enforcing hashed password verification, narrowing file upload risk, and standardizing secure configuration.
 
 ## Key security changes
 
-- Password verification now uses PBKDF2 hashing with a per-user salt instead of plaintext database comparison.
+- Password verification uses PBKDF2 hashing with a per-user salt instead of plaintext database comparison.
 - The sample SQL scripts no longer drop the database or create privileged SA accounts with hardcoded credentials.
 - The document storage directory uses the shared application data location instead of the current user profile folder.
 - File upload validation restricts file type and size.
-- Application configuration is environment-aware and avoids insecure local defaults.
+- Application configuration is environment-specific and avoids insecure local defaults.
 - Role-based authorization is enforced in the app before exposing management screens.
 
 ## Interactive features
@@ -54,6 +54,8 @@ This repository has been hardened for production-oriented deployment by removing
 - `DocumentsForm.cs` — upload, download, and search
 - `AdsForm.cs`, `PublishingForm.cs` — business record entry and display
 - `DatabaseHelper.cs` — parameterized SQL Server access and audit logging
+- `PasswordHashing.cs` — PBKDF2 hashing and verification
+- `SecurityPolicy.cs` — centralized role authorization rules
 - `~vs7E75.sql` — secure schema creation script
 - `~vs2C9E.sql` — intentionally empty of credentials; use your enterprise provisioning workflow instead
 

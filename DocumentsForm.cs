@@ -78,7 +78,7 @@ namespace ManipalDMS
                 }
 
                 string extension = Path.GetExtension(dialog.FileName);
-                if (!Array.Exists(AllowedExtensions, allowedExt => string.Equals(allowedExt, extension, StringComparison.OrdinalIgnoreCase)))
+                if (!AllowedExtensions.Any(ext => string.Equals(ext, extension, StringComparison.OrdinalIgnoreCase)))
                 {
                     MessageBox.Show("The selected file type is not allowed for this application.", "Upload failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
@@ -138,7 +138,7 @@ namespace ManipalDMS
             string sourcePath = Path.Combine(docsDirectory, Path.GetFileName(storedFileName));
             if (!File.Exists(sourcePath))
             {
-                MessageBox.Show("The document file is not present in the local storage folder.", "File unavailable",
+                MessageBox.Show("The document file is not present in the storage folder.", "File unavailable",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }

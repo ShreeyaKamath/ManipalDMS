@@ -47,36 +47,16 @@ namespace ManipalDMS
 
         private void ApplyRoleAccess()
         {
-            bool canViewDocuments = IsRole("Admin") || IsRole("Editor") || IsRole("Accountant");
-            bool canManageAdvertisements = IsRole("Admin");
-            bool canManagePublishing = IsRole("Admin");
+            bool canViewDocuments = SecurityPolicy.CanManageDocuments(userRole);
+            bool canManageAds = SecurityPolicy.CanManageAds(userRole);
+            bool canManagePublishing = SecurityPolicy.CanManagePublishing(userRole);
 
             buttonDocs.Enabled = canViewDocuments;
-            buttonAds.Enabled = canManageAdvertisements;
+            buttonAds.Enabled = canManageAds;
             buttonPublish.Enabled = canManagePublishing;
 
-            if (!canManageAdvertisements)
-            {
-                buttonAds.BackColor = Color.FromArgb(180, 180, 180);
-            }
-            else
-            {
-                buttonAds.BackColor = SystemColors.Control;
-            }
-
-            if (!canManagePublishing)
-            {
-                buttonPublish.BackColor = Color.FromArgb(180, 180, 180);
-            }
-            else
-            {
-                buttonPublish.BackColor = SystemColors.Control;
-            }
-        }
-
-        private bool IsRole(string requiredRole)
-        {
-            return string.Equals(userRole, requiredRole, StringComparison.OrdinalIgnoreCase);
+            buttonAds.BackColor = canManageAds ? SystemColors.Control : Color.FromArgb(180, 180, 180);
+            buttonPublish.BackColor = canManagePublishing ? SystemColors.Control : Color.FromArgb(180, 180, 180);
         }
 
         private void buttonDocs_Click(object sender, EventArgs e)
@@ -88,7 +68,7 @@ namespace ManipalDMS
 
         private void buttonAds_Click(object sender, EventArgs e)
         {
-            if (!IsRole("Admin"))
+            if (!SecurityPolicy.CanManageAds(userRole))
             {
                 MessageBox.Show("Access denied. Only administrators can manage advertisements.", "Authorization",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -102,7 +82,7 @@ namespace ManipalDMS
 
         private void buttonPublish_Click(object sender, EventArgs e)
         {
-            if (!IsRole("Admin"))
+            if (!SecurityPolicy.CanManagePublishing(userRole))
             {
                 MessageBox.Show("Access denied. Only administrators can manage publishing records.", "Authorization",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);

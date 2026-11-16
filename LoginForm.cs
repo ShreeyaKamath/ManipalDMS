@@ -43,7 +43,8 @@ namespace ManipalDMS
                 }
 
                 DataRow row = users.Rows[0];
-                if (row["IsActive"] != DBNull.Value && !(bool)row["IsActive"])
+                object isActiveValue = row["IsActive"];
+                if (isActiveValue != DBNull.Value && !(bool)isActiveValue)
                 {
                     ShowInvalidLogin();
                     return;
@@ -52,13 +53,13 @@ namespace ManipalDMS
                 byte[] storedHash = row["PasswordHash"] as byte[];
                 byte[] storedSalt = row["PasswordSalt"] as byte[];
 
-                if (storedHash == null || storedSalt == null)
+                if (storedHash == null || storedSalt == null || storedHash.Length == 0 || storedSalt.Length == 0)
                 {
                     ShowInvalidLogin();
                     return;
                 }
 
-                bool isValid = VerifyPassword(password, storedHash, storedSalt);
+                bool isValid = PasswordHashing.VerifyPassword(password, storedHash, storedSalt);
                 if (!isValid)
                 {
                     ShowInvalidLogin();
@@ -85,27 +86,6 @@ namespace ManipalDMS
         private static void ShowInvalidLogin()
         {
             MessageBox.Show("The username or password is incorrect.", "Sign in", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-        }
-
-        private static bool VerifyPassword(string password, byte[] storedHash, byte[] storedSalt)
-        {
-            using (var pbkdf2 = new Rfc2898DeriveBytes(password, storedSalt, 200000, HashAlgorithmName.SHA256))
-            {
-                byte[] computedHash = pbkdf2.GetBytes(32);
-                return FixedTimeEquals(computedHash, storedHash);
-            }
-        }
-
-        private static bool FixedTimeEquals(byte[] left, byte[] right)
-        {
-            if (left == null || right == null)
-                return false;
-
-            int diff = left.Length ^ right.Length;
-            for (int i = 0; i < Math.Min(left.Length, right.Length); i++)
-                diff |= left[i] ^ right[i];
-
-            return diff == 0;
         }
 
         private void checkBoxShowPassword_CheckedChanged(object sender, EventArgs e)
