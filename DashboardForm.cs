@@ -9,6 +9,7 @@ namespace ManipalDMS
     {
         private readonly string currentUser;
         private readonly string userRole;
+        private readonly Button buttonUsers;
         private readonly Button buttonAudit;
 
         public DashboardForm(string username, string role)
@@ -19,22 +20,33 @@ namespace ManipalDMS
             labelRole.Text = "Signed in: " + currentUser + " | " + userRole;
             StartPosition = FormStartPosition.CenterScreen;
 
-            buttonAudit = new Button
-            {
-                Text = "Audit Log",
-                Width = 180,
-                Height = 48,
-                Location = new Point(660, 350),
-                BackColor = Color.FromArgb(65, 85, 110),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 12F, FontStyle.Bold)
-            };
+            // These controls are created here rather than in the WinForms designer,
+            // keeping both entry points available without stale designer references.
+            buttonUsers = CreateDashboardButton("User Management", new Point(55, 350), Color.FromArgb(108, 117, 125));
+            buttonUsers.Click += buttonUsers_Click;
+            panelContent.Controls.Add(buttonUsers);
+
+            buttonAudit = CreateDashboardButton("Audit Log", new Point(660, 350), Color.FromArgb(65, 85, 110));
             buttonAudit.Click += buttonAudit_Click;
             panelContent.Controls.Add(buttonAudit);
 
             ApplyRoleAccess();
             LoadSummary();
+        }
+
+        private static Button CreateDashboardButton(string text, Point location, Color backColor)
+        {
+            return new Button
+            {
+                Text = text,
+                Width = 230,
+                Height = 48,
+                Location = location,
+                BackColor = backColor,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 12F, FontStyle.Bold)
+            };
         }
 
         private void LoadSummary()
@@ -74,10 +86,6 @@ namespace ManipalDMS
             buttonPublish.Enabled = buttonPublish.Visible = publishing;
             buttonUsers.Enabled = buttonUsers.Visible = users;
             buttonAudit.Enabled = buttonAudit.Visible = audit;
-
-            buttonAds.BackColor = ads ? SystemColors.Control : Color.FromArgb(180, 180, 180);
-            buttonPublish.BackColor = publishing ? SystemColors.Control : Color.FromArgb(180, 180, 180);
-            buttonUsers.BackColor = users ? SystemColors.Control : Color.FromArgb(180, 180, 180);
         }
 
         private void buttonDocs_Click(object sender, EventArgs e)
